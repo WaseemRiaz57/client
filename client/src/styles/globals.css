@@ -1,0 +1,42 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+* {
+    box-sizing: inherit;
+}
+
+a {
+    text-decoration: none;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.container {
+    display: flex;
+}
+
+.sidebar {
+    width: 64px;
+    background-color: #000000;
+    color: white;
+    height: 100vh;
+}
+
+.main-content {
+    flex-grow: 1;
+    background-color: #f0f0f0;
+    padding: 16px;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 48px; /* Adjust sidebar width for smaller screens */
+    }
+}

@@ -1,0 +1,543 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { BarChart3, Package, ShoppingCart, Users, TrendingUp, Loader2, X } from 'lucide-react';
+import axiosInstance from '@/lib/axios';
+
+interface StatCard {
+  title: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bgColor: string;
+  iconColor: string;
+  trend?: string;
+}
+
+interface AdminStats {
+  totalRevenue: number;
+  totalOrders: number;
+  totalProducts: number;
+  totalCustomers: number;
+}
+
+interface OrderItem {
+  product: {
+    _id: string;
+    modelName: string;
+    brand: string;
+    images?: string[];
+  };
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  _id: string;
+  user: {
+    name: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  totalAmount: number;
+  orderStatus: string;
+  createdAt: string;
+  items?: OrderItem[];
+}
+
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'delivered':
+      return 'bg-green-100 text-green-800';
+    case 'shipped':
+      return 'bg-blue-100 text-blue-800';
+    case 'processing':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'pending':
+      return 'bg-gray-100 text-gray-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const formatStatus = (status: string) => {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+// Helper function to construct image URL
+const getImageUrl = (imageSource: string | undefined): string => {
+  if (!imageSource) return '';
+  
+  // If it's already a full URL (http/https), return as-is
+  if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+    return imageSource;
+  }
+  
+  // If it's a relative path, prefix with API base URL
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  return `${apiBaseUrl}${imageSource}`;
+};
+
+export default function AdminDashboardPage() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [error, setError] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<'success' | 'error' | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+
+  // Status update handler
+  const handleStatusUpdate = async (orderId: string, newStatus: string) => {
+    try {
+      setUpdatingOrderId(orderId);
+      setUpdateStatus(null);
+      setFeedbackMessage('');
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+
+      if (!token) {
+        setUpdateStatus('error');
+        setFeedbackMessage('Authentication required');
+        setUpdatingOrderId(null);
+        return;
+      }
+
+      const response = await axiosInstance.put(
+        `/orders/${orderId}/status`,
+        { orderStatus: newStatus },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Update the selectedOrder state
+      if (selectedOrder && selectedOrder._id === orderId) {
+        setSelectedOrder({
+          ...selectedOrder,
+          orderStatus: newStatus,
+        });
+      }
+
+      // Update the recentOrders table
+      setRecentOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order._id === orderId ? { ...order, orderStatus: newStatus } : order
+        )
+      );
+
+      // Show success message
+      setUpdateStatus('success');
+      setFeedbackMessage('Status updated successfully');
+
+      console.log('Order status updated successfully:', response.data);
+    } catch (err: any) {
+      console.error('Error updating order status:', err);
+      const errorMsg = err.response?.data?.message || 'Failed to update order status';
+      setUpdateStatus('error');
+      setFeedbackMessage(errorMsg);
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+
+        if (!token) {
+          setError('Authentication required');
+          return;
+        }
+
+        // Fetch admin stats
+        const statsResponse = await axiosInstance.get('/orders/admin/stats', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        setStats(statsResponse.data);
+
+        // Fetch recent orders
+        const ordersResponse = await axiosInstance.get('/orders/admin/all', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        // Get last 5 orders (handle both array and object responses)
+        const allOrders = Array.isArray(ordersResponse.data) 
+          ? ordersResponse.data 
+          : (ordersResponse.data?.orders || []);
+        setRecentOrders(allOrders.slice(0, 5));
+      } catch (err: any) {
+        console.error('Error fetching dashboard data:', err);
+        setError(err.response?.data?.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Clear feedback message after 3 seconds
+  useEffect(() => {
+    if (updateStatus) {
+      const timer = setTimeout(() => {
+        setUpdateStatus(null);
+        setFeedbackMessage('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [updateStatus]);
+
+  // Build stat cards with real data
+  const statCards: StatCard[] = [
+    {
+      title: 'Total Revenue',
+      value: stats ? `PKR ${stats.totalRevenue.toLocaleString()}` : 'Loading...',
+      icon: TrendingUp,
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+    },
+    {
+      title: 'Total Orders',
+      value: stats ? stats.totalOrders.toString() : 'Loading...',
+      icon: ShoppingCart,
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+    },
+    {
+      title: 'Total Products',
+      value: stats ? stats.totalProducts.toString() : 'Loading...',
+      icon: Package,
+      bgColor: 'bg-green-50',
+      iconColor: 'text-green-600',
+    },
+    {
+      title: 'Total Customers',
+      value: stats ? stats.totalCustomers.toString() : 'Loading...',
+      icon: Users,
+      bgColor: 'bg-orange-50',
+      iconColor: 'text-orange-600',
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-gray-600" />
+          <p className="mt-4 font-body text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="rounded-lg bg-red-50 p-6 border border-red-200">
+          <p className="font-body text-red-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="font-heading text-4xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-2 font-body text-gray-600">Welcome back! Here's your business overview.</p>
+      </div>
+
+      {/* Stats Cards Grid */}
+      <div className="mb-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {statCards.map((card, index) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={index}
+              className="overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className={`p-6 ${card.bgColor}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-body text-sm font-medium text-gray-600">{card.title}</p>
+                    <p className="mt-2 font-heading text-3xl font-bold text-gray-900">
+                      {card.value}
+                    </p>
+                    {card.trend && (
+                      <p className="mt-2 font-body text-xs text-gray-500">{card.trend}</p>
+                    )}
+                  </div>
+                  <Icon className={`h-12 w-12 ${card.iconColor}`} strokeWidth={1.5} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Recent Activity Section */}
+      <div className="rounded-lg bg-white shadow-sm">
+        <div className="border-b border-gray-200 p-6">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-gray-700" />
+            <h2 className="font-heading text-2xl font-bold text-gray-900">Recent Orders</h2>
+          </div>
+          <p className="mt-1 font-body text-sm text-gray-600">Latest order activity from your store</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="px-6 py-4 text-left font-heading text-sm font-semibold text-gray-700">
+                  Order ID
+                </th>
+                <th className="px-6 py-4 text-left font-heading text-sm font-semibold text-gray-700">
+                  Customer
+                </th>
+                <th className="px-6 py-4 text-left font-heading text-sm font-semibold text-gray-700">
+                  Amount
+                </th>
+                <th className="px-6 py-4 text-left font-heading text-sm font-semibold text-gray-700">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left font-heading text-sm font-semibold text-gray-700">
+                  Date
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center font-body text-gray-500">
+                    No orders found
+                  </td>
+                </tr>
+              ) : (
+                recentOrders.map((order) => (
+                  <tr 
+                    key={order._id} 
+                    onClick={() => setSelectedOrder(order)}
+                    className="cursor-pointer border-b border-gray-200 hover:bg-blue-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 font-body text-sm font-medium text-gray-900">
+                      #{order._id.slice(-6).toUpperCase()}
+                    </td>
+                    <td className="px-6 py-4 font-body text-sm text-gray-700">
+                      {order.user?.name || `${order.user?.firstName || ''} ${order.user?.lastName || ''}`.trim() || order.user?.email || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 font-body text-sm font-semibold text-gray-900">
+                      PKR {order.totalAmount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 font-body text-xs font-medium ${getStatusColor(order.orderStatus)}`}
+                      >
+                        {formatStatus(order.orderStatus)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-body text-sm text-gray-600">
+                      {new Date(order.createdAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="border-t border-gray-200 p-6">
+          <button className="inline-flex items-center rounded-md bg-black px-6 py-2 font-body text-sm font-medium text-white hover:bg-gray-800 transition-colors">
+            View All Orders
+          </button>
+        </div>
+      </div>
+
+      {/* Order Detail Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-lg bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 p-6">
+              <h2 className="font-heading text-2xl font-bold text-gray-900">Order Details</h2>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="rounded-md p-1 text-gray-500 hover:bg-gray-100 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="max-h-96 overflow-y-auto p-6">
+              {/* Customer Information */}
+              <div className="mb-6">
+                <h3 className="mb-4 font-heading text-lg font-semibold text-gray-900">Customer Information</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="font-body text-sm text-gray-600">Name</p>
+                    <p className="font-body text-base font-medium text-gray-900">
+                      {selectedOrder.user?.name || `${selectedOrder.user?.firstName || ''} ${selectedOrder.user?.lastName || ''}`.trim() || 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-body text-sm text-gray-600">Email</p>
+                    <p className="font-body text-base font-medium text-gray-900">{selectedOrder.user?.email || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Status and Amount */}
+              <div className="mb-6 rounded-lg bg-gray-50 p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="font-body text-sm text-gray-600">Order Status</p>
+                    <div className="mt-2">
+                      <select
+                        value={selectedOrder.orderStatus}
+                        onChange={(e) => handleStatusUpdate(selectedOrder._id, e.target.value)}
+                        disabled={updatingOrderId === selectedOrder._id}
+                        className={`w-full rounded-md border px-3 py-2 font-body text-sm font-semibold transition-colors ${
+                          selectedOrder.orderStatus === 'delivered'
+                            ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
+                            : selectedOrder.orderStatus === 'shipped'
+                            ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
+                            : selectedOrder.orderStatus === 'processing'
+                            ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+                            : selectedOrder.orderStatus === 'cancelled'
+                            ? 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100'
+                            : 'border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200'
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      {updatingOrderId === selectedOrder._id && (
+                        <p className="mt-2 flex items-center gap-2 font-body text-xs text-gray-600">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Updating...
+                        </p>
+                      )}
+                      {updateStatus === 'success' && (
+                        <p className="mt-2 font-body text-xs text-green-600 font-medium">
+                          {feedbackMessage}
+                        </p>
+                      )}
+                      {updateStatus === 'error' && (
+                        <p className="mt-2 font-body text-xs text-red-600 font-medium">
+                          {feedbackMessage}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-body text-sm text-gray-600">Total Amount</p>
+                    <p className="mt-1 font-heading text-lg font-bold text-gray-900">
+                      PKR {selectedOrder.totalAmount.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Products */}
+              <div className="rounded-lg bg-white p-4">
+                <h3 className="mb-4 font-heading text-lg font-semibold text-gray-900">Products</h3>
+                {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                  <div className="space-y-3 border-t border-gray-200 pt-4">
+                    {selectedOrder.items.map((item, index) => {
+                      // Debug: Log product image data
+                      console.log("Product Image Data:", item.product?.images);
+                      
+                      const imageUrl = item.product?.images?.[0] || item.product?.image;
+                      const finalImageUrl = getImageUrl(imageUrl);
+                      
+                      return (
+                      <div key={item.product?._id || index} className="flex gap-4 rounded-md border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 transition-colors">
+                        {/* Product Image */}
+                        <div className="flex-shrink-0">
+                          {finalImageUrl ? (
+                            <img
+                              key={item.product?._id}
+                              src={finalImageUrl}
+                              alt={item.product?.modelName}
+                              className="h-20 w-20 rounded-md border object-cover"
+                              onError={(e) => {
+                                console.error("Image failed to load:", finalImageUrl);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="flex h-20 w-20 items-center justify-center rounded-md border border-gray-300 bg-white">
+                              <Package className="h-10 w-10 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Product Details */}
+                        <div className="flex-1">
+                          <h4 className="font-heading text-base font-semibold text-gray-900">
+                            {item.product?.brand} {item.product?.modelName}
+                          </h4>
+                          <p className="mt-1 font-body text-sm text-gray-600">
+                            Quantity: <span className="font-semibold text-gray-900">{item.quantity}</span>
+                          </p>
+                          <p className="mt-1 font-body text-sm text-gray-600">
+                            Price per item: <span className="font-semibold text-gray-900">PKR {item.price.toLocaleString()}</span>
+                          </p>
+                          <p className="mt-2 font-heading text-base font-bold text-gray-900">
+                            Subtotal: PKR {(item.price * item.quantity).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="font-body text-gray-500">No products in this order</p>
+                )}
+              </div>
+
+              {/* Order Total Summary */}
+              <div className="mt-6 rounded-lg border-t-2 border-gray-200 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-heading text-lg font-semibold text-gray-700">Total Amount:</span>
+                  <span className="font-heading text-2xl font-bold text-gray-900">
+                    PKR {selectedOrder.totalAmount.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 p-6">
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="w-full rounded-md bg-black px-4 py-3 font-body text-sm font-semibold text-white hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
