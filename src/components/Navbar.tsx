@@ -1,169 +1,140 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { ShoppingBag, Search, Menu, X } from 'lucide-react';
+import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import { useCartStore } from '@/store/useCartStore';
 
-const Navbar = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
+export default function Navbar() {
+  const [hidden, setHidden] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const { scrollY } = useScroll();
+  
+  // ✅ Cart Store Integration (Old Functionality Kept)
   const totalItems = useCartStore((state) => state.totalItems);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // Scroll Logic: Hide on scroll down, Show on scroll up
+  useMotionValueEvent(scrollY, "change", (latest) => {
+    const previous = scrollY.getPrevious() ?? 0;
+    if (latest > previous && latest > 150) {
+      setHidden(true); 
+      setIsMobileMenuOpen(false); // Close mobile menu on scroll
+    } else {
+      setHidden(false);
+    }
+  });
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const navLinks = [
+    { name: 'Collections', href: '/shop' },
+    { name: 'Heritage', href: '/about' }, // Assuming these routes exists, mapped to Shop/About
+    { name: 'Artisans', href: '/contact' }
+  ];
 
   return (
-    <nav
-      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
-        isScrolled ? 'bg-white shadow-lg' : 'bg-white/90 backdrop-blur-sm'
-      }`}
-    >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary">
-              <svg
-                className="h-6 w-6 text-gold"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <span className="font-heading text-2xl font-bold text-primary">
-              LuxWatch
-            </span>
+    <>
+      <motion.nav
+        variants={{
+          visible: { y: 0, opacity: 1 },
+          hidden: { y: -100, opacity: 0 },
+        }}
+        animate={hidden ? "hidden" : "visible"}
+        transition={{ duration: 0.35, ease: "easeInOut" }}
+        className="fixed top-6 inset-x-0 z-50 flex justify-center px-4 pointer-events-none"
+      >
+        {/* Glass Pill Container */}
+        <div className="pointer-events-auto backdrop-blur-xl bg-black/40 border border-white/10 rounded-full px-6 md:px-8 py-3 md:py-4 flex items-center justify-between gap-6 md:gap-24 shadow-2xl shadow-black/50">
+          
+          {/* Left: Brand */}
+          <Link href="/" className="font-serif text-lg md:text-xl tracking-[0.2em] text-white font-bold whitespace-nowrap">
+            CHRONOS
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden items-center gap-8 md:flex">
-            <Link
-              href="/"
-              className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
-            >
-              Home
-            </Link>
-            <Link
-              href="/products"
-              className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
-            >
-              Shop
-            </Link>
+          {/* Center: Links (Desktop) */}
+          <div className="hidden md:flex items-center gap-8">
+            {navLinks.map((item) => (
+              <Link 
+                key={item.name} 
+                href={item.href}
+                className="text-[10px] lg:text-xs uppercase tracking-[0.15em] text-gray-300 hover:text-[#D4AF37] transition-colors font-medium"
+              >
+                {item.name}
+              </Link>
+            ))}
           </div>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center gap-6">
-            {/* Admin Link - Discreet */}
-            {isMounted && (
-              <Link
-                href="/admin"
-                className="hidden text-xs text-gray-400 transition-colors hover:text-gray-600 lg:block"
-                title="Admin Panel"
-              >
-                ⚙️
-              </Link>
-            )}
-
-            {/* Cart */}
-            <Link href="/cart" className="relative">
-              <svg
-                className="h-6 w-6 text-gray-700 transition-colors hover:text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
+          {/* Right: Icons */}
+          <div className="flex items-center gap-4 md:gap-6">
+            <button className="text-gray-300 hover:text-white transition-colors hidden sm:block">
+              <Search className="w-4 h-4" />
+            </button>
+            
+            {/* Cart Icon with Count */}
+            <Link href="/cart" className="relative text-gray-300 hover:text-white transition-colors">
+              <ShoppingBag className="w-4 h-4" />
               {totalItems > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-xs font-bold text-black">
+                <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-[#D4AF37] text-[9px] font-bold text-black animate-pulse">
                   {totalItems}
                 </span>
               )}
             </Link>
 
-            {/* Mobile Menu Button */}
-            <button
+            {/* Mobile Menu Toggle */}
+            <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden"
+              className="md:hidden text-white focus:outline-none"
             >
-              <svg
-                className="h-6 w-6 text-gray-700"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                {isMobileMenuOpen ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                )}
-              </svg>
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* Mobile Menu */}
-      {isMobileMenuOpen && (
-        <div className="border-t border-gray-200 bg-white md:hidden">
-          <div className="space-y-1 px-4 py-4">
-            <Link
-              href="/"
-              className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Home
-            </Link>
-            <Link
-              href="/products"
-              className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Shop
-            </Link>
-            <Link
-              href="/admin"
-              className="block py-2 font-body text-xs text-gray-400 transition-colors hover:text-gray-600"
-              onClick={() => setIsMobileMenuOpen(false)}
-              title="Admin Panel"
-            >
-              Admin
-            </Link>
-          </div>
         </div>
-      )}
-    </nav>
+      </motion.nav>
+
+      {/* Mobile Full Screen Menu Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl pt-32 px-6 md:hidden flex flex-col items-center"
+          >
+            <div className="flex flex-col items-center gap-8 w-full">
+              {navLinks.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-2xl font-serif text-white uppercase tracking-[0.2em] hover:text-[#D4AF37] transition-colors"
+                >
+                  {item.name}
+                </Link>
+              ))}
+              
+              <div className="w-12 h-[1px] bg-white/10 my-4"></div>
+
+              <Link
+                href="/products"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-sm font-medium text-gray-400 uppercase tracking-widest hover:text-white"
+              >
+                Shop All
+              </Link>
+
+              {/* Admin Link (Only in Mobile Menu for discretion) */}
+              <Link
+                href="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="text-xs text-gray-600 uppercase tracking-widest mt-8 hover:text-gray-400"
+              >
+                Admin Panel
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
-};
-
-export default Navbar;
+}
