@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import axiosInstance from '@/lib/axios';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, X, Trash2 } from 'lucide-react';
+import ProductImage from '@/components/ProductImage';
 
 interface FormData {
   modelName: string;
@@ -27,6 +28,10 @@ export default function EditProductPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const [dragActive, setDragActive] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     modelName: '',
@@ -76,6 +81,11 @@ export default function EditProductPage() {
           waterResistance: product.waterResistance || '300m',
         });
 
+        // Set existing images
+        if (product.images && Array.isArray(product.images)) {
+          setExistingImages(product.images);
+        }
+
         console.log('Product loaded:', product);
       } catch (err: any) {
         console.error('Error fetching product:', err);
@@ -104,6 +114,54 @@ export default function EditProductPage() {
     }));
   };
 
+  // Handle file selection from input
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return;
+
+    const fileArray = Array.from(files);
+    setNewFiles((prev) => [...prev, ...fileArray]);
+
+    // Generate previews
+    fileArray.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewPreviews((prev) => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle drag and drop
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    handleFileSelect(files);
+  };
+
+  // Remove new file preview
+  const removeNewFile = (index: number) => {
+    setNewFiles((prev) => prev.filter((_, i) => i !== index));
+    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Remove existing image from product
+  const removeExistingImage = (index: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const validateForm = (): boolean => {
     if (!formData.modelName.trim()) {
       setError('Model Name is required');
@@ -125,8 +183,8 @@ export default function EditProductPage() {
       setError('Description is required');
       return false;
     }
-    if (!formData.imageUrl.trim()) {
-      setError('Image URL is required');
+    if (existingImages.length === 0 && newFiles.length === 0) {
+      setError('At least one image is required');
       return false;
     }
     return true;
@@ -153,28 +211,38 @@ export default function EditProductPage() {
         return;
       }
 
-      // Prepare product data - wrap imageUrl in an array for the backend
-      const productData = {
-        modelName: formData.modelName.trim(),
-        brand: formData.brand.trim(),
-        price: Number(formData.price),
-        stock: Number(formData.stock),
-        description: formData.description.trim(),
-        images: [formData.imageUrl.trim()], // Wrap URL in array
-        movement: formData.movement || 'automatic',
-        caseSize: formData.caseSize || '42mm',
-        waterResistance: formData.waterResistance || '300m',
-        condition: 'new',
-        sapphireGlass: true,
-      };
+      // Create FormData for multipart submission
+      const submitFormData = new FormData();
 
-      console.log('Submitting product update:', productData);
+      // Append text fields
+      submitFormData.append('modelName', formData.modelName.trim());
+      submitFormData.append('brand', formData.brand.trim());
+      submitFormData.append('price', formData.price);
+      submitFormData.append('stock', formData.stock);
+      submitFormData.append('description', formData.description.trim());
+      submitFormData.append('movement', formData.movement || 'automatic');
+      submitFormData.append('caseSize', formData.caseSize || '42mm');
+      submitFormData.append('waterResistance', formData.waterResistance || '300m');
+      submitFormData.append('condition', 'new');
+
+      // Append existing images that user wants to KEEP
+      // This allows the backend to know which old images to preserve
+      existingImages.forEach((image) => {
+        submitFormData.append('existingImages', image);
+      });
+
+      // Append new files
+      newFiles.forEach((file) => {
+        submitFormData.append('images', file);
+      });
+
+      console.log('Submitting product update with', existingImages.length, 'existing images and', newFiles.length, 'new images');
 
       // Submit to backend
-      const response = await axiosInstance.put(`/admin/products/${productId}`, productData, {
+      const response = await axiosInstance.put(`/admin/products/${productId}`, submitFormData, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data',
         },
       });
 
@@ -307,22 +375,113 @@ export default function EditProductPage() {
               </div>
             </div>
 
-            {/* Image URL */}
+            {/* Image Management */}
             <div>
-              <label className="mb-2 block font-body text-sm font-semibold text-gray-700">
-                Image URL <span className="text-red-600">*</span>
+              <label className="mb-4 block font-body text-sm font-semibold text-gray-700">
+                Images <span className="text-red-600">*</span>
               </label>
-              <input
-                type="text"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleInputChange}
-                placeholder="https://example.com/image.jpg"
-                className="w-full border border-gray-300 px-4 py-2 font-body rounded-md focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-              />
-              <p className="mt-1 font-body text-xs text-gray-500">
-                Use Cloudinary or Unsplash image URLs for best results
-              </p>
+
+              {/* Existing Images */}
+              {existingImages.length > 0 && (
+                <div className="mb-6">
+                  <p className="mb-3 font-body text-xs font-medium text-gray-600 uppercase tracking-wide">
+                    Current Images
+                  </p>
+                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+                    {existingImages.map((image, index) => (
+                      <div
+                        key={`existing-${index}`}
+                        className="relative aspect-square rounded-lg border border-gray-200 overflow-hidden bg-gray-50"
+                      >
+                        <ProductImage
+                          src={image}
+                          alt={`Existing image ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(index)}
+                          className="absolute top-1 right-1 rounded-full bg-red-600 p-1 text-white hover:bg-red-700 transition-colors"
+                          title="Delete image"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Drag and Drop Upload Area */}
+              <div
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                className={`rounded-lg border-2 border-dashed transition-colors p-8 text-center cursor-pointer ${
+                  dragActive
+                    ? 'border-black bg-black/5'
+                    : 'border-gray-300 bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                <input
+                  type="file"
+                  id="file-upload"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                  className="hidden"
+                />
+                <label htmlFor="file-upload" className="cursor-pointer block">
+                  <div className="flex justify-center mb-3">
+                    <div className="rounded-full bg-gray-200 p-3">
+                      <Upload className="h-6 w-6 text-gray-600" />
+                    </div>
+                  </div>
+                  <p className="font-body font-semibold text-gray-900 mb-1">
+                    Drop images here or click to select
+                  </p>
+                  <p className="font-body text-xs text-gray-600">
+                    JPEG, PNG, WebP supported (up to 10 images)
+                  </p>
+                </label>
+              </div>
+
+              {/* New File Previews */}
+              {newPreviews.length > 0 && (
+                <div className="mt-6">
+                  <p className="mb-3 font-body text-xs font-medium text-gray-600 uppercase tracking-wide">
+                    New Images Selected ({newPreviews.length})
+                  </p>
+                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+                    {newPreviews.map((preview, index) => (
+                      <div
+                        key={`new-${index}`}
+                        className="relative aspect-square rounded-lg border border-blue-200 overflow-hidden bg-blue-50"
+                      >
+                        <img
+                          src={preview}
+                          alt={`New image ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeNewFile(index)}
+                          className="absolute top-1 right-1 rounded-full bg-red-600 p-1 text-white hover:bg-red-700 transition-colors"
+                          title="Remove image"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1">
+                          <p className="font-body text-xs font-medium text-white text-center">
+                            {index + 1}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Movement */}

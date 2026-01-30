@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Package,
   ShoppingCart,
-  Users,
   Settings,
   LogOut,
   Menu,
@@ -24,7 +23,6 @@ const navLinks: NavLink[] = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-  { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

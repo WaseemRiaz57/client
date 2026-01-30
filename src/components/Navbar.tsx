@@ -3,14 +3,12 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useCartStore } from '@/store/useCartStore';
-import { useRouter } from 'next/navigation';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const totalItems = useCartStore((state) => state.totalItems);
-  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,23 +19,8 @@ const Navbar = () => {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth-token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      try {
-        setUser(JSON.parse(userData));
-      } catch (e) {
-        console.error('Failed to parse user data');
-      }
-    }
+    setIsMounted(true);
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('auth-token');
-    localStorage.removeItem('user');
-    setUser(null);
-    router.push('/');
-  };
 
   return (
     <nav
@@ -79,24 +62,23 @@ const Navbar = () => {
               href="/products"
               className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
             >
-              Products
-            </Link>
-            <Link
-              href="/about"
-              className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
-            >
-              About
-            </Link>
-            <Link
-              href="/contact"
-              className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
-            >
-              Contact
+              Shop
             </Link>
           </div>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
+            {/* Admin Link - Discreet */}
+            {isMounted && (
+              <Link
+                href="/admin"
+                className="hidden text-xs text-gray-400 transition-colors hover:text-gray-600 lg:block"
+                title="Admin Panel"
+              >
+                ⚙️
+              </Link>
+            )}
+
             {/* Cart */}
             <Link href="/cart" className="relative">
               <svg
@@ -118,50 +100,6 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
-
-            {/* User Menu */}
-            {user ? (
-              <div className="hidden items-center gap-3 md:flex">
-                <span className="font-body text-sm text-gray-700">
-                  {user.name}
-                </span>
-                <Link
-                  href="/orders"
-                  className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
-                >
-                  Orders
-                </Link>
-                {user.role === 'admin' && (
-                  <Link
-                    href="/admin"
-                    className="rounded-lg bg-primary px-4 py-2 font-body text-sm font-semibold uppercase tracking-wider text-white transition-all hover:bg-gray-800"
-                  >
-                    Admin
-                  </Link>
-                )}
-                <button
-                  onClick={handleLogout}
-                  className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-red-600"
-                >
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="hidden items-center gap-3 md:flex">
-                <Link
-                  href="/login"
-                  className="font-body text-sm font-medium uppercase tracking-wider text-gray-700 transition-colors hover:text-primary"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-lg bg-primary px-4 py-2 font-body text-sm font-semibold uppercase tracking-wider text-white transition-all hover:bg-gray-800"
-                >
-                  Register
-                </Link>
-              </div>
-            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -211,66 +149,16 @@ const Navbar = () => {
               className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              Products
+              Shop
             </Link>
             <Link
-              href="/about"
-              className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
+              href="/admin"
+              className="block py-2 font-body text-xs text-gray-400 transition-colors hover:text-gray-600"
               onClick={() => setIsMobileMenuOpen(false)}
+              title="Admin Panel"
             >
-              About
+              Admin
             </Link>
-            <Link
-              href="/contact"
-              className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Contact
-            </Link>
-            {user ? (
-              <>
-                <div className="border-t border-gray-200 pt-2">
-                  <p className="py-2 font-body text-sm text-gray-700">
-                    {user.name}
-                  </p>
-                  {user.role === 'admin' && (
-                    <Link
-                      href="/admin"
-                      className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Admin Panel
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-red-600"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="border-t border-gray-200 pt-2">
-                <Link
-                  href="/login"
-                  className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/register"
-                  className="block py-2 font-body text-sm font-medium uppercase tracking-wider text-gray-700"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Register
-                </Link>
-              </div>
-            )}
           </div>
         </div>
       )}

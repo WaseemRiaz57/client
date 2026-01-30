@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import axiosInstance from '@/lib/axios';
-import { Plus, Edit2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, AlertCircle, AlertTriangle } from 'lucide-react';
+import ProductImage from '@/components/ProductImage';
 
 interface Product {
   _id: string;
@@ -18,67 +19,18 @@ interface Product {
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [totalProducts, setTotalProducts] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
 
-  // Fetch products on mount
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        setError('');
-
-        const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
-
-        if (!token) {
-          setError('Authentication required. Please log in again.');
-          return;
-        }
-
-        const response = await axiosInstance.get('/products', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        // Handle both array and paginated responses
-        const productList = Array.isArray(response.data)
-          ? response.data
-          : response.data?.products || [];
-
-        setProducts(productList);
-        
-        // Update total count from pagination data
-        const total = response.data?.pagination?.total || productList.length;
-        setTotalProducts(total);
-        
-        console.log('Products loaded:', productList);
-      } catch (err: any) {
-        console.error('Error fetching products:', err);
-        const errorMessage =
-          err.response?.data?.message ||
-          err.message ||
-          'Failed to load products. Please try again.';
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
-
-  // Handle delete product
-  const handleDeleteProduct = async (productId: string, productName: string) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${productName}"? This action cannot be undone.`
-    );
-
-    if (!confirmed) return;
-
+  const fetchProducts = useCallback(async () => {
     try {
-      setDeleting(productId);
+      setLoading(true);
+      setError('');
 
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
 
@@ -87,7 +39,71 @@ export default function AdminProductsPage() {
         return;
       }
 
-      await axiosInstance.delete(`/products/${productId}`, {
+      const response = await axiosInstance.get('/products', {
+        params: { page },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Handle both array and paginated responses
+      const productList = Array.isArray(response.data)
+        ? response.data
+        : response.data?.products || [];
+
+      setProducts(productList);
+
+      // Update total count from pagination data
+      const total = response.data?.pagination?.total || productList.length;
+      setTotalProducts(total);
+
+      const pages = response.data?.pagination?.pages || 1;
+      setTotalPages(pages);
+
+      console.log('Products loaded:', productList);
+    } catch (err: any) {
+      console.error('Error fetching products:', err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to load products. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [page, fetchProducts]);
+
+  // Open delete modal
+  const openDeleteModal = (id: string) => {
+    setProductToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  // Close delete modal
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setProductToDelete(null);
+  };
+
+  // Handle delete product
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    try {
+      setDeleting(productToDelete);
+
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+
+      if (!token) {
+        setError('Authentication required. Please log in again.');
+        return;
+      }
+
+      await axiosInstance.delete(`/admin/products/${productToDelete}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -95,10 +111,11 @@ export default function AdminProductsPage() {
 
       // Remove product from state
       setProducts((prevProducts) =>
-        prevProducts.filter((product) => product._id !== productId)
+        prevProducts.filter((product) => product._id !== productToDelete)
       );
 
-      console.log('Product deleted successfully:', productId);
+      console.log('Product deleted successfully:', productToDelete);
+      closeDeleteModal();
     } catch (err: any) {
       console.error('Error deleting product:', err);
       const errorMessage =
@@ -107,20 +124,6 @@ export default function AdminProductsPage() {
     } finally {
       setDeleting(null);
     }
-  };
-
-  // Helper function to construct image URL
-  const getImageUrl = (imageSource: string | undefined): string => {
-    if (!imageSource) return '';
-
-    // If it's already a full URL (http/https), return as-is
-    if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
-      return imageSource;
-    }
-
-    // If it's a relative path, prefix with API base URL
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    return `${apiBaseUrl}${imageSource}`;
   };
 
   if (loading) {
@@ -204,8 +207,6 @@ export default function AdminProductsPage() {
                 </thead>
                 <tbody>
                   {products.map((product) => {
-                    const imageUrl = getImageUrl(product.images?.[0] || product.image);
-
                     return (
                       <tr
                         key={product._id}
@@ -213,20 +214,10 @@ export default function AdminProductsPage() {
                       >
                         {/* Image */}
                         <td className="px-6 py-4">
-                          <img
-                            src={
-                              product.images?.[0]
-                                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${product.images[0]}`
-                                : product.image
-                                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${product.image}`
-                                : '/placeholder.png'
-                            }
+                          <ProductImage
+                            src={product.images?.[0]}
                             alt={product.modelName}
                             className="h-12 w-12 rounded-md border object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/placeholder.png';
-                              e.currentTarget.onerror = null;
-                            }}
                           />
                         </td>
 
@@ -272,9 +263,7 @@ export default function AdminProductsPage() {
 
                             {/* Delete Button */}
                             <button
-                              onClick={() =>
-                                handleDeleteProduct(product._id, product.modelName)
-                              }
+                              onClick={() => openDeleteModal(product._id)}
                               disabled={deleting === product._id}
                               className="inline-flex items-center justify-center rounded-md p-2 text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                               title="Delete product"
@@ -304,7 +293,82 @@ export default function AdminProductsPage() {
             </p>
           </div>
         )}
+
+        {/* Pagination */}
+        {products.length > 0 && (
+          <div className="mt-6 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page === 1}
+              className="rounded-md border border-gray-300 px-4 py-2 font-body text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="font-body text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={page >= totalPages}
+              className="rounded-md border border-gray-300 px-4 py-2 font-body text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg bg-white shadow-xl">
+            {/* Modal Content */}
+            <div className="p-6">
+              {/* Icon */}
+              <div className="mb-4 flex justify-center">
+                <div className="rounded-full bg-red-100 p-3">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+
+              {/* Title and Message */}
+              <h3 className="mb-2 text-center font-heading text-xl font-bold text-gray-900">
+                Are you sure?
+              </h3>
+              <p className="mb-6 text-center font-body text-sm text-gray-600">
+                This action cannot be undone. The product will be permanently deleted.
+              </p>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={closeDeleteModal}
+                  disabled={deleting !== null}
+                  className="flex-1 rounded-md border border-gray-300 px-4 py-2 font-body font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteProduct}
+                  disabled={deleting !== null}
+                  className="flex-1 rounded-md bg-red-600 px-4 py-2 font-body font-medium text-white hover:bg-red-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                >
+                  {deleting === productToDelete ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

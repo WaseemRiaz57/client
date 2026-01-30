@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BarChart3, Package, ShoppingCart, Users, TrendingUp, Loader2, X } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 
@@ -68,16 +68,18 @@ const formatStatus = (status: string) => {
 
 // Helper function to construct image URL
 const getImageUrl = (imageSource: string | undefined): string => {
-  if (!imageSource) return '';
-  
+  if (!imageSource) return '/placeholder.png';
+
   // If it's already a full URL (http/https), return as-is
   if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
     return imageSource;
   }
-  
-  // If it's a relative path, prefix with API base URL
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  return `${apiBaseUrl}${imageSource}`;
+
+  // If it's a relative path, prefix with API base URL (strip /api if present)
+  const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const baseUrl = rawBaseUrl.replace(/\/api\/?$/, '');
+  const normalizedPath = imageSource.startsWith('/') ? imageSource : `/${imageSource}`;
+  return `${baseUrl}${normalizedPath}`;
 };
 
 export default function AdminDashboardPage() {
@@ -85,6 +87,8 @@ export default function AdminDashboardPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [updateStatus, setUpdateStatus] = useState<'success' | 'error' | null>(null);
@@ -108,7 +112,7 @@ export default function AdminDashboardPage() {
 
       const response = await axiosInstance.put(
         `/orders/${orderId}/status`,
-        { orderStatus: newStatus },
+        { status: newStatus },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -146,50 +150,59 @@ export default function AdminDashboardPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError('');
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
 
-        const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
 
-        if (!token) {
-          setError('Authentication required');
-          return;
-        }
-
-        // Fetch admin stats
-        const statsResponse = await axiosInstance.get('/orders/admin/stats', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        setStats(statsResponse.data);
-
-        // Fetch recent orders
-        const ordersResponse = await axiosInstance.get('/orders/admin/all', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        // Get last 5 orders (handle both array and object responses)
-        const allOrders = Array.isArray(ordersResponse.data) 
-          ? ordersResponse.data 
-          : (ordersResponse.data?.orders || []);
-        setRecentOrders(allOrders.slice(0, 5));
-      } catch (err: any) {
-        console.error('Error fetching dashboard data:', err);
-        setError(err.response?.data?.message || 'Failed to load dashboard data');
-      } finally {
-        setLoading(false);
+      if (!token) {
+        setError('Authentication required');
+        return;
       }
-    };
 
+      // Fetch admin stats
+      const statsResponse = await axiosInstance.get('/orders/admin/stats', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setStats(statsResponse.data);
+
+      // Fetch orders (paginated if supported)
+      const pageSize = 5;
+      const ordersResponse = await axiosInstance.get('/orders/admin/all', {
+        params: { page, limit: pageSize },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const allOrders = Array.isArray(ordersResponse.data)
+        ? ordersResponse.data
+        : (ordersResponse.data?.orders || []);
+
+      if (ordersResponse.data?.pagination) {
+        setRecentOrders(allOrders);
+        setTotalPages(ordersResponse.data.pagination.pages || 1);
+      } else {
+        const start = (page - 1) * pageSize;
+        setRecentOrders(allOrders.slice(start, start + pageSize));
+        setTotalPages(Math.max(1, Math.ceil(allOrders.length / pageSize)));
+      }
+    } catch (err: any) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [page, fetchDashboardData]);
 
   // Clear feedback message after 3 seconds
   useEffect(() => {
@@ -363,9 +376,32 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="border-t border-gray-200 p-6">
-          <button className="inline-flex items-center rounded-md bg-black px-6 py-2 font-body text-sm font-medium text-white hover:bg-gray-800 transition-colors">
-            View All Orders
-          </button>
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page === 1}
+                className="rounded-md border border-gray-300 px-4 py-2 font-body text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="font-body text-sm text-gray-600">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page >= totalPages}
+                className="rounded-md border border-gray-300 px-4 py-2 font-body text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+            <button className="inline-flex items-center rounded-md bg-black px-6 py-2 font-body text-sm font-medium text-white hover:bg-gray-800 transition-colors">
+              View All Orders
+            </button>
+          </div>
         </div>
       </div>
 
@@ -464,32 +500,25 @@ export default function AdminDashboardPage() {
                 {selectedOrder.items && selectedOrder.items.length > 0 ? (
                   <div className="space-y-3 border-t border-gray-200 pt-4">
                     {selectedOrder.items.map((item, index) => {
-                      // Debug: Log product image data
-                      console.log("Product Image Data:", item.product?.images);
-                      
                       const imageUrl = item.product?.images?.[0] || item.product?.image;
                       const finalImageUrl = getImageUrl(imageUrl);
-                      
+
                       return (
                       <div key={item.product?._id || index} className="flex gap-4 rounded-md border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 transition-colors">
                         {/* Product Image */}
                         <div className="flex-shrink-0">
-                          {finalImageUrl ? (
-                            <img
-                              key={item.product?._id}
-                              src={finalImageUrl}
-                              alt={item.product?.modelName}
-                              className="h-20 w-20 rounded-md border object-cover"
-                              onError={(e) => {
-                                console.error("Image failed to load:", finalImageUrl);
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="flex h-20 w-20 items-center justify-center rounded-md border border-gray-300 bg-white">
-                              <Package className="h-10 w-10 text-gray-400" />
-                            </div>
-                          )}
+                          <img
+                            src={finalImageUrl}
+                            alt={item.product?.modelName}
+                            className="h-20 w-20 rounded-md border object-cover"
+                            onError={(e) => {
+                              if (e.currentTarget.src.endsWith('/placeholder.png')) {
+                                return;
+                              }
+                              e.currentTarget.src = '/placeholder.png';
+                              e.currentTarget.onerror = null;
+                            }}
+                          />
                         </div>
                         {/* Product Details */}
                         <div className="flex-1">
