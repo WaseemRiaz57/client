@@ -1,15 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import axiosInstance from '@/lib/axios';
 
 const AdminSettingsPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -67,12 +71,17 @@ const AdminSettingsPage = () => {
   const handleChangePassword = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!password) {
+    if (!currentPassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+
+    if (!newPassword) {
       toast.error('Please enter a new password');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
@@ -80,19 +89,26 @@ const AdminSettingsPage = () => {
     try {
       setSavingPassword(true);
       const response = await axiosInstance.put('/users/profile', {
-        password,
+        oldPassword: currentPassword,
+        password: newPassword,
       });
 
       if (response.data?.token && typeof window !== 'undefined') {
         localStorage.setItem('auth-token', response.data.token);
       }
 
-      setPassword('');
+      setCurrentPassword('');
+      setNewPassword('');
       setConfirmPassword('');
       toast.success('Password updated successfully');
     } catch (error: any) {
-      const message = error?.response?.data?.message || error?.message || 'Failed to update password';
-      toast.error(message);
+      const apiMessage = error?.response?.data?.message;
+      if (apiMessage === 'Invalid old password') {
+        toast.error('Invalid old password');
+      } else {
+        const message = apiMessage || error?.message || 'Failed to update password';
+        toast.error(message);
+      }
     } finally {
       setSavingPassword(false);
     }
@@ -165,25 +181,66 @@ const AdminSettingsPage = () => {
 
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700">Current Password</label>
+              <div className="relative">
+                <input
+                  type={showCurrent ? 'text' : 'password'}
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  placeholder="Enter current password"
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent(!showCurrent)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
+                >
+                  {showCurrent ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700">New Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter new password"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+              <div className="relative">
+                <input
+                  type={showNew ? 'text' : 'password'}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="Enter new password"
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew(!showNew)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  aria-label={showNew ? 'Hide new password' : 'Show new password'}
+                >
+                  {showNew ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Confirm new password"
-                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  placeholder="Confirm new password"
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+                >
+                  {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
 
             <button
