@@ -8,44 +8,54 @@ import { ArrowLeft, Loader2, AlertCircle, Edit2, Save, X } from 'lucide-react';
 import ProductImage from '@/components/ProductImage';
 import toast from 'react-hot-toast';
 
+// Constants
+const API_URL = 'http://localhost:5000';
+
+// Helper function to construct image URL
+const getImageUrl = (imageSource: string | undefined): string => {
+  if (!imageSource) return '/placeholder.png';
+  if (imageSource.startsWith('http://') || imageSource.startsWith('https://')) {
+    return imageSource;
+  }
+  const normalizedPath = imageSource.startsWith('/') ? imageSource : `/${imageSource}`;
+  return `${API_URL}${normalizedPath}`;
+};
+
 interface OrderItem {
-  product: {
+  product?: {
     _id: string;
     modelName: string;
     brand: string;
     images?: string[];
     price: number;
-  };
-  quantity: number;
+  } | null;
+  name?: string;
+  qty?: number;
+  quantity?: number; // Backward compatibility
+  image?: string;
   price: number;
-}
-
-interface ShippingAddress {
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
 }
 
 interface Order {
   _id: string;
   user: {
-    _id: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
+    name: string;
+    email: string;
     phone?: string;
+    address?: string;
+    city?: string;
+    zip?: string;
   };
-  items: OrderItem[];
-  shippingAddress: ShippingAddress;
-  totalAmount: number;
-  paymentStatus: 'pending' | 'paid' | 'failed';
-  orderStatus: 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  orderItems: OrderItem[];
+  items?: OrderItem[]; // Backward compatibility
+  totalPrice: number;
+  totalAmount?: number; // Backward compatibility
+  status?: string; // NEW field
+  orderStatus?: string; // Backward compatibility
+  isPaid: boolean;
   isDelivered: boolean;
+  paymentStatus?: string; // Backward compatibility
+  paidAt?: string;
   deliveredAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -59,18 +69,6 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editingAddress, setEditingAddress] = useState(false);
-  const [savingAddress, setSavingAddress] = useState(false);
-  const [addressForm, setAddressForm] = useState<ShippingAddress>({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: '',
-  });
 
   // Fetch order on mount
   useEffect(() => {
@@ -98,7 +96,6 @@ export default function AdminOrderDetailPage() {
       });
 
       setOrder(response.data);
-      setAddressForm(response.data.shippingAddress);
       console.log('Order loaded:', response.data);
     } catch (err: any) {
       console.error('Error fetching order:', err);
@@ -116,62 +113,22 @@ export default function AdminOrderDetailPage() {
   // Handle address form change
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setAddressForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    // Address changes no longer needed
   };
 
-  // Start editing address
+  // Start editing address (placeholder - no longer used)
   const startEditingAddress = () => {
-    if (order) {
-      setAddressForm(order.shippingAddress);
-      setEditingAddress(true);
-    }
+    // Address editing no longer supported
   };
 
-  // Cancel editing
+  // Cancel editing (placeholder - no longer used)
   const cancelEditingAddress = () => {
-    if (order) {
-      setAddressForm(order.shippingAddress);
-    }
-    setEditingAddress(false);
+    // Address editing no longer supported
   };
 
-  // Save address
+  // Save address (placeholder - no longer used)
   const saveAddress = async () => {
-    try {
-      setSavingAddress(true);
-
-      const token = typeof window !== 'undefined' ? localStorage.getItem('auth-token') : null;
-
-      if (!token) {
-        toast.error('Authentication required. Please log in again.');
-        return;
-      }
-
-      const response = await axiosInstance.put(
-        `/orders/${orderId}/status`,
-        { shippingAddress: addressForm },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setOrder(response.data.order);
-      setEditingAddress(false);
-      toast.success('Shipping address updated successfully');
-      console.log('Address updated:', response.data);
-    } catch (err: any) {
-      console.error('Error updating address:', err);
-      const errorMessage =
-        err.response?.data?.message || 'Failed to update address. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setSavingAddress(false);
-    }
+    // Address saving no longer needed
   };
 
   // Format date
@@ -225,9 +182,7 @@ export default function AdminOrderDetailPage() {
   }
 
   const customerName =
-    order.user.firstName && order.user.lastName
-      ? `${order.user.firstName} ${order.user.lastName}`
-      : order.user.email || 'Unknown';
+    order?.user?.name || order?.user?.email || 'Unknown';
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -253,19 +208,24 @@ export default function AdminOrderDetailPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span
-                className={`inline-flex rounded-full px-4 py-2 font-body text-sm font-medium ${
-                  order.orderStatus === 'delivered'
-                    ? 'bg-green-100 text-green-800'
-                    : order.orderStatus === 'shipped'
-                    ? 'bg-blue-100 text-blue-800'
-                    : order.orderStatus === 'cancelled'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}
-              >
-                {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-              </span>
+              {(() => {
+                const status = order.status || order.orderStatus || 'Processing';
+                return (
+                  <span
+                    className={`inline-flex rounded-full px-4 py-2 font-body text-sm font-medium ${
+                      status.toLowerCase() === 'delivered'
+                        ? 'bg-green-100 text-green-800'
+                        : status.toLowerCase() === 'shipped'
+                        ? 'bg-blue-100 text-blue-800'
+                        : status.toLowerCase() === 'cancelled'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -277,16 +237,18 @@ export default function AdminOrderDetailPage() {
             <div className="rounded-lg bg-white p-6 shadow-sm">
               <h2 className="mb-4 font-heading text-xl font-bold text-gray-900">Order Items</h2>
               <div className="space-y-4">
-                {order.items.map((item, index) => {
+                {(order.orderItems || order.items || []).map((item, index) => {
                   // Handle deleted products
                   const productExists = item.product !== null && item.product !== undefined;
                   const productName = productExists
-                    ? item.product.modelName
-                    : 'Product Deleted';
+                    ? item.product?.modelName
+                    : item.name || 'Product Deleted';
                   const productBrand = productExists
-                    ? item.product.brand
+                    ? item.product?.brand
                     : 'No longer available';
-                  const productImage = productExists ? item.product.images?.[0] : null;
+                  // Support both new (item.image) and old (item.product.images) formats
+                  const imageSource = item.image || item.product?.images?.[0];
+                  const productImage = getImageUrl(imageSource);
 
                   return (
                     <div
@@ -294,10 +256,13 @@ export default function AdminOrderDetailPage() {
                       className="flex items-center gap-4 rounded-lg border border-gray-200 p-4"
                     >
                       {productExists ? (
-                        <ProductImage
+                        <img
                           src={productImage}
                           alt={productName}
                           className="h-20 w-20 rounded-md border object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = '/placeholder.png';
+                          }}
                         />
                       ) : (
                         <div className="h-20 w-20 rounded-md border border-gray-300 bg-gray-100 flex items-center justify-center">
@@ -310,7 +275,7 @@ export default function AdminOrderDetailPage() {
                         </h3>
                         <p className="font-body text-sm text-gray-600">{productBrand}</p>
                         <p className="mt-1 font-body text-sm text-gray-600">
-                          Quantity: {item.quantity}
+                          Quantity: {item.qty || item.quantity || 1}
                         </p>
                       </div>
                       <div className="text-right">
@@ -318,7 +283,7 @@ export default function AdminOrderDetailPage() {
                           PKR {item.price.toLocaleString()}
                         </p>
                         <p className="font-body text-sm text-gray-600">
-                          × {item.quantity} = PKR {(item.price * item.quantity).toLocaleString()}
+                          × {item.qty || item.quantity || 1} = PKR {(item.price * (item.qty || item.quantity || 1)).toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -338,186 +303,61 @@ export default function AdminOrderDetailPage() {
               <div className="space-y-2">
                 <div>
                   <p className="font-body text-sm text-gray-600">Name</p>
-                  <p className="font-body font-medium text-gray-900">{customerName}</p>
+                  <p className="font-body font-medium text-gray-900">{order?.user?.name || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="font-body text-sm text-gray-600">Email</p>
-                  <p className="font-body font-medium text-gray-900">{order.user.email}</p>
+                  <p className="font-body font-medium text-gray-900">{order?.user?.email || 'N/A'}</p>
                 </div>
-                {order.user.phone && (
+                {order?.user?.phone && (
                   <div>
                     <p className="font-body text-sm text-gray-600">Phone</p>
-                    <p className="font-body font-medium text-gray-900">{order.user.phone}</p>
+                    <p className="font-body font-medium text-gray-900">{order?.user?.phone}</p>
+                  </div>
+                )}
+                {order?.user?.address && (
+                  <div>
+                    <p className="font-body text-sm text-gray-600">Address</p>
+                    <p className="font-body font-medium text-gray-900">
+                      {order?.user?.address}{order?.user?.city ? `, ${order?.user?.city}` : ''}
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Shipping Address */}
+            {/* Shipping Address - Same as Customer Info for Guest Orders */}
             <div className="rounded-lg bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4">
                 <h2 className="font-heading text-lg font-bold text-gray-900">
-                  Shipping Address
+                  Delivery Address
                 </h2>
-                {!editingAddress && (
-                  <button
-                    onClick={startEditingAddress}
-                    className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 font-body text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                    Edit
-                  </button>
-                )}
               </div>
 
-              {editingAddress ? (
-                <div className="space-y-3">
-                  <div>
-                    <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      value={addressForm.fullName}
-                      onChange={handleAddressChange}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={addressForm.email}
-                      onChange={handleAddressChange}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                      Phone
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={addressForm.phone}
-                      onChange={handleAddressChange}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                      Address
-                    </label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={addressForm.address}
-                      onChange={handleAddressChange}
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                        City
-                      </label>
-                      <input
-                        type="text"
-                        name="city"
-                        value={addressForm.city}
-                        onChange={handleAddressChange}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                        State
-                      </label>
-                      <input
-                        type="text"
-                        name="state"
-                        value={addressForm.state}
-                        onChange={handleAddressChange}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                        Zip Code
-                      </label>
-                      <input
-                        type="text"
-                        name="zipCode"
-                        value={addressForm.zipCode}
-                        onChange={handleAddressChange}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block font-body text-xs font-medium text-gray-700">
-                        Country
-                      </label>
-                      <input
-                        type="text"
-                        name="country"
-                        value={addressForm.country}
-                        onChange={handleAddressChange}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 font-body text-sm focus:border-black focus:outline-none focus:ring-2 focus:ring-black/20"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={saveAddress}
-                      disabled={savingAddress}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-black px-4 py-2 font-body text-sm font-medium text-white hover:bg-gray-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {savingAddress ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4" />
-                          Save
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={cancelEditingAddress}
-                      disabled={savingAddress}
-                      className="rounded-md border border-gray-300 px-4 py-2 font-body text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <p className="font-body font-medium text-gray-900">
-                    {order.shippingAddress.fullName}
-                  </p>
-                  <p className="font-body text-sm text-gray-600">{order.shippingAddress.email}</p>
-                  <p className="font-body text-sm text-gray-600">{order.shippingAddress.phone}</p>
-                  <p className="mt-2 font-body text-sm text-gray-900">
-                    {order.shippingAddress.address}
-                  </p>
-                  <p className="font-body text-sm text-gray-900">
-                    {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
-                    {order.shippingAddress.zipCode}
-                  </p>
-                  <p className="font-body text-sm text-gray-900">
-                    {order.shippingAddress.country}
-                  </p>
-                </div>
-              )}
+              <div className="space-y-1">
+                <p className="font-body font-medium text-gray-900">
+                  {order?.user?.name || 'N/A'}
+                </p>
+                <p className="font-body text-sm text-gray-600">{order?.user?.email || 'N/A'}</p>
+                {order?.user?.phone && (
+                  <p className="font-body text-sm text-gray-600">{order?.user?.phone}</p>
+                )}
+                {order?.user?.address && (
+                  <>
+                    <p className="mt-2 font-body text-sm text-gray-900">
+                      {order?.user?.address}
+                    </p>
+                    {order?.user?.city && (
+                      <p className="font-body text-sm text-gray-900">{order?.user?.city}</p>
+                    )}
+                    {order?.user?.zip && (
+                      <p className="font-body text-sm text-gray-900">
+                        Zip Code: {order?.user?.zip}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Order Summary */}
@@ -527,7 +367,7 @@ export default function AdminOrderDetailPage() {
                 <div className="flex justify-between font-body text-sm">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium text-gray-900">
-                    PKR {order.totalAmount.toLocaleString()}
+                    PKR {order?.totalPrice?.toLocaleString() || '0'}
                   </span>
                 </div>
                 <div className="flex justify-between font-body text-sm">
@@ -538,7 +378,7 @@ export default function AdminOrderDetailPage() {
                   <div className="flex justify-between font-body text-base">
                     <span className="font-semibold text-gray-900">Total</span>
                     <span className="font-bold text-gray-900">
-                      PKR {order.totalAmount.toLocaleString()}
+                      PKR {order?.totalPrice?.toLocaleString() || '0'}
                     </span>
                   </div>
                 </div>
@@ -547,18 +387,12 @@ export default function AdminOrderDetailPage() {
                     <span className="text-gray-600">Payment Status</span>
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                        order.paymentStatus === 'paid'
+                        order.isPaid
                           ? 'bg-green-100 text-green-800'
-                          : order.paymentStatus === 'failed'
-                          ? 'bg-red-100 text-red-800'
                           : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
-                      {order.paymentStatus === 'paid'
-                        ? 'Paid'
-                        : order.paymentStatus === 'failed'
-                        ? 'Failed'
-                        : 'Pending'}
+                      {order.isPaid ? 'Paid' : 'Pending'}
                     </span>
                   </div>
                 </div>

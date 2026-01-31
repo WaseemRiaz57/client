@@ -6,33 +6,33 @@ import axiosInstance from '@/lib/axios';
 import { Eye, Loader2, AlertCircle, Trash2, CreditCard, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface OrderItem {
-  product: {
-    _id: string;
-    modelName: string;
-    brand: string;
-    images?: string[];
-  };
-  quantity: number;
-  price: number;
-}
-
 interface Order {
   _id: string;
   user: {
-    _id: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    zip?: string;
   };
-  items: OrderItem[];
-  totalAmount: number;
-  paymentStatus: 'pending' | 'paid' | 'failed';
-  orderStatus: 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  isDelivered: boolean;
-  deliveredAt?: string;
+  orderItems: Array<{
+    name: string;
+    qty: number;
+    image: string;
+    price: number;
+    product: {
+      _id: string;
+      modelName: string;
+      brand: string;
+      images?: string[];
+    };
+  }>;
+  totalPrice: number;
   isPaid: boolean;
+  isDelivered: boolean;
   paidAt?: string;
+  deliveredAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -308,9 +308,7 @@ export default function AdminOrdersPage() {
                 </thead>
                 <tbody>
                   {orders.map((order) => {
-                    const customerName = order.user.firstName && order.user.lastName
-                      ? `${order.user.firstName} ${order.user.lastName}`
-                      : order.user.email || 'Unknown';
+                    const customerName = order.user?.name || order.user?.email || 'Unknown';
 
                     return (
                       <tr
@@ -334,7 +332,7 @@ export default function AdminOrdersPage() {
 
                         {/* Total */}
                         <td className="px-6 py-4 font-body text-sm font-semibold text-gray-900">
-                          PKR {order.totalAmount.toLocaleString()}
+                          PKR {order.totalPrice.toLocaleString()}
                         </td>
 
                         {/* Payment Status */}

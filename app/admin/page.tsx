@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, Package, ShoppingCart, Users, TrendingUp, Loader2, X } from 'lucide-react';
+import { BarChart3, Package, ShoppingCart, Users, TrendingUp, Loader2, X, ArrowUpRight } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 
+// ✅ FIX: 'icon' type 'any' kar di taake strokeWidth ka error na aye
 interface StatCard {
   title: string;
   value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  bgColor: string;
+  icon: any; 
+  iconBg: string; // UI update ke liye
   iconColor: string;
   trend?: string;
 }
@@ -21,13 +22,16 @@ interface AdminStats {
 }
 
 interface OrderItem {
-  product: {
+  name?: string;
+  image?: string;
+  product?: {
     _id: string;
     modelName: string;
     brand: string;
     images?: string[];
   };
-  quantity: number;
+  quantity?: number;
+  qty?: number;
   price: number;
 }
 
@@ -39,14 +43,16 @@ interface Order {
     firstName?: string;
     lastName?: string;
   };
-  totalAmount: number;
-  orderStatus: string;
+  totalPrice: number;
+  status?: string;
+  orderStatus?: string;
   createdAt: string;
   items?: OrderItem[];
+  orderItems?: OrderItem[];
 }
 
 const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
+  switch (status?.toLowerCase()) {
     case 'delivered':
       return 'bg-green-100 text-green-800';
     case 'shipped':
@@ -63,8 +69,12 @@ const getStatusColor = (status: string) => {
 };
 
 const formatStatus = (status: string) => {
+  if (!status) return 'Pending';
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
+
+// Constants
+const API_URL = 'http://localhost:5000';
 
 // Helper function to construct image URL
 const getImageUrl = (imageSource: string | undefined): string => {
@@ -75,11 +85,9 @@ const getImageUrl = (imageSource: string | undefined): string => {
     return imageSource;
   }
 
-  // If it's a relative path, prefix with API base URL (strip /api if present)
-  const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-  const baseUrl = rawBaseUrl.replace(/\/api\/?$/, '');
+  // If it's a relative path, prefix with API base URL
   const normalizedPath = imageSource.startsWith('/') ? imageSource : `/${imageSource}`;
-  return `${baseUrl}${normalizedPath}`;
+  return `${API_URL}${normalizedPath}`;
 };
 
 export default function AdminDashboardPage() {
@@ -125,13 +133,14 @@ export default function AdminDashboardPage() {
         setSelectedOrder({
           ...selectedOrder,
           orderStatus: newStatus,
+          status: newStatus,
         });
       }
 
       // Update the recentOrders table
       setRecentOrders((prevOrders) =>
         prevOrders.map((order) =>
-          order._id === orderId ? { ...order, orderStatus: newStatus } : order
+          order._id === orderId ? { ...order, orderStatus: newStatus, status: newStatus } : order
         )
       );
 
@@ -215,35 +224,39 @@ export default function AdminDashboardPage() {
     }
   }, [updateStatus]);
 
-  // Build stat cards with real data
+  // ✅ New Premium UI Stat Cards Configuration
   const statCards: StatCard[] = [
     {
       title: 'Total Revenue',
       value: stats ? `PKR ${stats.totalRevenue.toLocaleString()}` : 'Loading...',
       icon: TrendingUp,
-      bgColor: 'bg-blue-50',
+      iconBg: 'bg-blue-50',
       iconColor: 'text-blue-600',
+      trend: '+12.5%'
     },
     {
       title: 'Total Orders',
       value: stats ? stats.totalOrders.toString() : 'Loading...',
       icon: ShoppingCart,
-      bgColor: 'bg-purple-50',
+      iconBg: 'bg-purple-50',
       iconColor: 'text-purple-600',
+      trend: '+5.2%'
     },
     {
       title: 'Total Products',
       value: stats ? stats.totalProducts.toString() : 'Loading...',
       icon: Package,
-      bgColor: 'bg-green-50',
-      iconColor: 'text-green-600',
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      trend: 'In Stock'
     },
     {
       title: 'Total Customers',
       value: stats ? stats.totalCustomers.toString() : 'Loading...',
       icon: Users,
-      bgColor: 'bg-orange-50',
+      iconBg: 'bg-orange-50',
       iconColor: 'text-orange-600',
+      trend: '+2.4%'
     },
   ];
 
@@ -276,28 +289,36 @@ export default function AdminDashboardPage() {
         <p className="mt-2 font-body text-gray-600">Welcome back! Here's your business overview.</p>
       </div>
 
-      {/* Stats Cards Grid */}
-      <div className="mb-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      {/* ✅ Stats Cards Grid (NEW PREMIUM UI) */}
+      <div className="mb-10 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card, index) => {
           const Icon = card.icon;
           return (
             <div
               key={index}
-              className="overflow-hidden rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow"
+              className="group relative overflow-hidden rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
-              <div className={`p-6 ${card.bgColor}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-body text-sm font-medium text-gray-600">{card.title}</p>
-                    <p className="mt-2 font-heading text-3xl font-bold text-gray-900">
-                      {card.value}
-                    </p>
-                    {card.trend && (
-                      <p className="mt-2 font-body text-xs text-gray-500">{card.trend}</p>
-                    )}
-                  </div>
-                  <Icon className={`h-12 w-12 ${card.iconColor}`} strokeWidth={1.5} />
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    {card.title}
+                  </p>
+                  <h3 className="mt-2 font-heading text-3xl font-bold text-gray-900">
+                    {card.value}
+                  </h3>
                 </div>
+                <div className={`rounded-xl p-3 ${card.iconBg} ${card.iconColor} bg-opacity-50`}>
+                  {/* Fixed strokeWidth error here */}
+                  <Icon className="h-6 w-6" strokeWidth={2} />
+                </div>
+              </div>
+              
+              <div className="mt-4 flex items-center text-xs font-medium text-green-600">
+                <span className="flex items-center bg-green-50 px-2 py-0.5 rounded-full">
+                  <ArrowUpRight className="mr-1 h-3 w-3" />
+                  {card.trend}
+                </span>
+                <span className="ml-2 text-gray-400">from last month</span>
               </div>
             </div>
           );
@@ -356,13 +377,13 @@ export default function AdminDashboardPage() {
                       {order.user?.name || `${order.user?.firstName || ''} ${order.user?.lastName || ''}`.trim() || order.user?.email || 'N/A'}
                     </td>
                     <td className="px-6 py-4 font-body text-sm font-semibold text-gray-900">
-                      PKR {order.totalAmount.toLocaleString()}
+                      PKR {(order.totalPrice || 0).toLocaleString()}
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex rounded-full px-3 py-1 font-body text-xs font-medium ${getStatusColor(order.orderStatus)}`}
+                        className={`inline-flex rounded-full px-3 py-1 font-body text-xs font-medium ${getStatusColor(order.status || order.orderStatus || 'pending')}`}
                       >
-                        {formatStatus(order.orderStatus)}
+                        {formatStatus(order.status || order.orderStatus || 'pending')}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-body text-sm text-gray-600">
@@ -446,17 +467,17 @@ export default function AdminDashboardPage() {
                     <p className="font-body text-sm text-gray-600">Order Status</p>
                     <div className="mt-2">
                       <select
-                        value={selectedOrder.orderStatus}
+                        value={selectedOrder.status || selectedOrder.orderStatus || 'processing'}
                         onChange={(e) => handleStatusUpdate(selectedOrder._id, e.target.value)}
                         disabled={updatingOrderId === selectedOrder._id}
                         className={`w-full rounded-md border px-3 py-2 font-body text-sm font-semibold transition-colors ${
-                          selectedOrder.orderStatus === 'delivered'
+                          (selectedOrder.status || selectedOrder.orderStatus || '').toLowerCase() === 'delivered'
                             ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
-                            : selectedOrder.orderStatus === 'shipped'
+                            : (selectedOrder.status || selectedOrder.orderStatus || '').toLowerCase() === 'shipped'
                             ? 'border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100'
-                            : selectedOrder.orderStatus === 'processing'
+                            : (selectedOrder.status || selectedOrder.orderStatus || '').toLowerCase() === 'processing'
                             ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
-                            : selectedOrder.orderStatus === 'cancelled'
+                            : (selectedOrder.status || selectedOrder.orderStatus || '').toLowerCase() === 'cancelled'
                             ? 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100'
                             : 'border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200'
                         } disabled:cursor-not-allowed disabled:opacity-50`}
@@ -488,7 +509,7 @@ export default function AdminDashboardPage() {
                   <div>
                     <p className="font-body text-sm text-gray-600">Total Amount</p>
                     <p className="mt-1 font-heading text-lg font-bold text-gray-900">
-                      PKR {selectedOrder.totalAmount.toLocaleString()}
+                      PKR {(selectedOrder.totalPrice || 0).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -497,11 +518,13 @@ export default function AdminDashboardPage() {
               {/* Products */}
               <div className="rounded-lg bg-white p-4">
                 <h3 className="mb-4 font-heading text-lg font-semibold text-gray-900">Products</h3>
-                {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                
+                {/* ✅ FIX: Added Safe Array '|| []' and 'item: any' to prevent errors */}
+                {(selectedOrder.orderItems || selectedOrder.items || []).length > 0 ? (
                   <div className="space-y-3 border-t border-gray-200 pt-4">
-                    {selectedOrder.items.map((item, index) => {
-                      const imageUrl = item.product?.images?.[0] || item.product?.image;
-                      const finalImageUrl = getImageUrl(imageUrl);
+                    {(selectedOrder.orderItems || selectedOrder.items || []).map((item: any, index: number) => {
+                      const imageSource = item.image || item.product?.images?.[0];
+                      const finalImageUrl = getImageUrl(imageSource);
 
                       return (
                       <div key={item.product?._id || index} className="flex gap-4 rounded-md border border-gray-200 bg-gray-50 p-4 hover:bg-gray-100 transition-colors">
@@ -509,7 +532,7 @@ export default function AdminDashboardPage() {
                         <div className="flex-shrink-0">
                           <img
                             src={finalImageUrl}
-                            alt={item.product?.modelName}
+                            alt={item.product?.modelName || item.name}
                             className="h-20 w-20 rounded-md border object-cover"
                             onError={(e) => {
                               if (e.currentTarget.src.endsWith('/placeholder.png')) {
@@ -523,16 +546,16 @@ export default function AdminDashboardPage() {
                         {/* Product Details */}
                         <div className="flex-1">
                           <h4 className="font-heading text-base font-semibold text-gray-900">
-                            {item.product?.brand} {item.product?.modelName}
+                            {item.product?.brand} {item.product?.modelName || item.name}
                           </h4>
                           <p className="mt-1 font-body text-sm text-gray-600">
-                            Quantity: <span className="font-semibold text-gray-900">{item.quantity}</span>
+                            Quantity: <span className="font-semibold text-gray-900">{item.qty || item.quantity}</span>
                           </p>
                           <p className="mt-1 font-body text-sm text-gray-600">
                             Price per item: <span className="font-semibold text-gray-900">PKR {item.price.toLocaleString()}</span>
                           </p>
                           <p className="mt-2 font-heading text-base font-bold text-gray-900">
-                            Subtotal: PKR {(item.price * item.quantity).toLocaleString()}
+                            Subtotal: PKR {(item.price * (item.qty || item.quantity)).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -549,7 +572,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center justify-between">
                   <span className="font-heading text-lg font-semibold text-gray-700">Total Amount:</span>
                   <span className="font-heading text-2xl font-bold text-gray-900">
-                    PKR {selectedOrder.totalAmount.toLocaleString()}
+                    PKR {(selectedOrder.totalPrice || 0).toLocaleString()}
                   </span>
                 </div>
               </div>

@@ -3,35 +3,39 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
-import { ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronRight, Check } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
-import toast from 'react-hot-toast';
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, totalPrice, clearCart } = useCartStore();
   
-  // Safe variable to avoid undefined errors
-  const cartItems = cart || [];
+  // ✅ FIX 1: TypeScript Error Fix (Red lines khatam)
+  const cartItems: any[] = cart || [];
 
-  // Form states
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [zipCode, setZipCode] = useState('');
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    zip: '',
+  });
+
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false); // Modal State
 
-  // Redirect to shop if cart is empty
+  // ✅ FIX 2: Redirect Logic Fixed
+  // Agar cart khali hai, lekin Success Modal khula hai, to redirect MAT karo
   useEffect(() => {
-    if (cartItems.length === 0) {
+    if (!showSuccess && cartItems.length === 0) {
       router.push('/shop');
     }
-  }, [cartItems, router]);
+  }, [cartItems, router, showSuccess]);
 
-  // Helper function to resolve image URLs
+  // Helper for images
   const getImageUrl = (imagePath?: string) => {
     if (!imagePath) {
       return 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=1200&auto=format&fit=crop';
@@ -49,39 +53,113 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
-    if (!fullName || !email || !phone || !address || !city || !zipCode) {
-      toast.error('Please fill in all fields');
+    // 1. Validation
+    if (!formData.name || !formData.email || !formData.address || !formData.city || !formData.zip) {
+      alert('Please fill in all required fields');
       return;
     }
 
+    if (cartItems.length === 0) {
+      alert('Your cart is empty');
+      return;
+    }
+
+    setIsProcessing(true);
+
     try {
-      setIsProcessing(true);
+      // 2. Calculate Total
+      const calculatedTotal = cartItems.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
 
-      // Simulate order processing (replace with actual API call if needed)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // 3. Payload
+      const payload = {
+        user: {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          city: formData.city,
+          zip: formData.zip,
+        },
+        orderItems: cartItems.map((item: any) => ({
+          name: item.modelName || item.name,
+          qty: item.quantity,
+          image: item.image || 'https://via.placeholder.com/150',
+          price: item.price,
+          product: item.id ? item.id : undefined,
+        })),
+        totalPrice: calculatedTotal,
+        paymentMethod: 'Cash',
+      };
 
-      // Success
-      toast.success('Order Placed Successfully!');
-      clearCart();
+      console.log('Payload:', payload);
+
+      // 4. API Call
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Server Error');
+      }
+
+      // 5. Success Action
+      // Pehle Modal dikhao, phir cart clear karo
+      setShowSuccess(true); 
       
-      // Redirect to home after a brief delay
+      // Cart clear karne se pehle thora wait logic (optional), 
+      // lekin hum useEffect mein rok chukay hain is liye direct clear kar sakte hain.
+      clearCart(); 
+
+      // Wait 2 seconds then redirect to Thank You page
       setTimeout(() => {
-        router.push('/');
-      }, 1500);
-    } catch (error) {
-      toast.error('Failed to place order. Please try again.');
+         window.location.href = '/order-success?id=' + data.order._id;
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Order Failed:', error);
+      alert(error.message);
       setIsProcessing(false);
     }
   };
 
-  // Return early if cart is empty (will redirect)
-  if (cartItems.length === 0) {
+  // Render nothing if cart is empty AND we are not showing success
+  // (Taake flashing na ho jab redirect ho raha ho)
+  if (cartItems.length === 0 && !showSuccess) {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-[#050505] text-white relative">
+      
+      {/* ✅ SUCCESS MODAL START */}
+      <AnimatePresence>
+        {showSuccess && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-[#111] border border-gold/30 p-8 rounded-lg shadow-2xl max-w-sm w-full text-center"
+            >
+              <div className="mx-auto w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center mb-6">
+                <Check className="w-8 h-8 text-gold" />
+              </div>
+              <h2 className="text-2xl font-heading font-bold text-white mb-2">Order Placed!</h2>
+              <p className="text-gray-400 text-sm">Thank you for your purchase.</p>
+              <div className="mt-6 flex items-center justify-center gap-2 text-gold text-sm animate-pulse">
+                <span>Redirecting to confirmation</span>
+                <ChevronRight size={14} />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* ✅ SUCCESS MODAL END */}
+
       {/* Header */}
       <div className="border-b border-gold/20 bg-black/50 px-6 py-12 text-center">
         <div className="mx-auto max-w-7xl">
@@ -124,8 +202,9 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    name="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
                     placeholder="Enter your full name"
                     className="w-full bg-transparent border-b border-gold/50 py-3 text-white placeholder-gray-500 focus:border-gold focus:outline-none transition"
                   />
@@ -138,8 +217,9 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    name="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
                     placeholder="your.email@example.com"
                     className="w-full bg-transparent border-b border-gold/50 py-3 text-white placeholder-gray-500 focus:border-gold focus:outline-none transition"
                   />
@@ -152,8 +232,9 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    name="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
                     placeholder="+1 (555) 123-4567"
                     className="w-full bg-transparent border-b border-gold/50 py-3 text-white placeholder-gray-500 focus:border-gold focus:outline-none transition"
                   />
@@ -166,8 +247,9 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
+                    name="address"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
                     placeholder="123 Luxury Avenue"
                     className="w-full bg-transparent border-b border-gold/50 py-3 text-white placeholder-gray-500 focus:border-gold focus:outline-none transition"
                   />
@@ -180,8 +262,9 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    name="city"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
                     placeholder="New York"
                     className="w-full bg-transparent border-b border-gold/50 py-3 text-white placeholder-gray-500 focus:border-gold focus:outline-none transition"
                   />
@@ -194,8 +277,9 @@ export default function CheckoutPage() {
                   </label>
                   <input
                     type="text"
-                    value={zipCode}
-                    onChange={(e) => setZipCode(e.target.value)}
+                    name="zip"
+                    value={formData.zip}
+                    onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
                     placeholder="10001"
                     className="w-full bg-transparent border-b border-gold/50 py-3 text-white placeholder-gray-500 focus:border-gold focus:outline-none transition"
                   />
@@ -231,7 +315,7 @@ export default function CheckoutPage() {
 
               {/* Cart Items */}
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {cartItems.map((item, index) => (
+                {cartItems.map((item: any, index: number) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 10 }}
@@ -242,7 +326,7 @@ export default function CheckoutPage() {
                     <div className="relative w-16 h-16 flex-shrink-0 bg-gray-800 rounded-sm overflow-hidden border border-gold/10">
                       <Image
                         src={getImageUrl(item.image)}
-                        alt={item.modelName}
+                        alt={item.modelName || item.name}
                         fill
                         className="object-cover"
                       />
@@ -255,7 +339,7 @@ export default function CheckoutPage() {
                           {item.brand}
                         </p>
                         <p className="font-body text-sm text-white line-clamp-2">
-                          {item.modelName}
+                          {item.modelName || item.name}
                         </p>
                       </div>
                       <p className="text-xs text-gray-400">
