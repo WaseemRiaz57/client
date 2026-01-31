@@ -1,16 +1,16 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  // ✅ TypeScript errors ko ignore karne ke liye
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // ✅ 1. TypeScript aur ESLint Errors ko Ignore karein (Build pass karne ke liye)
   typescript: {
     ignoreBuildErrors: true,
   },
   
-  // ✅ ESLint property ko handle karne ka sahi tarika
+  // ✅ 2. ESLint ko ignore karne ka sahi tarika
   eslint: {
     ignoreDuringBuilds: true,
-  } as any, // 'as any' lagane se TypeScript ka error khatam ho jayega
+  },
 
+  // ✅ 3. Images Configuration
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
@@ -19,8 +19,10 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // ✅ 4. Proxy / Rewrites (Backend Connection)
   async rewrites() {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://luxewatch-backend.onrender.com';
+    
     return [
       {
         source: '/uploads/:path*',
