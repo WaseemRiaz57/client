@@ -1,11 +1,13 @@
 'use client';
 
+import { Suspense } from 'react'; // ✅ 1. Suspense import kiya
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 
-export default function OrderSuccessPage() {
+// ✅ 2. Asli Logic ko 'OrderSuccessContent' component bana diya
+function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('id');
 
@@ -112,5 +114,14 @@ export default function OrderSuccessPage() {
         </motion.p>
       </motion.div>
     </div>
+  );
+}
+
+// ✅ 3. Main Component wrapped in Suspense (Build Error Fix)
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center text-white">Loading...</div>}>
+      <OrderSuccessContent />
+    </Suspense>
   );
 }
