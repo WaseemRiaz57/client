@@ -1,16 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ 1. TypeScript aur ESLint Errors ko Ignore karein (Build pass karne ke liye)
+  // ✅ 1. TypeScript aur ESLint ko build ke waqt ignore karein
   typescript: {
     ignoreBuildErrors: true,
   },
-  
-  // ✅ 2. ESLint ko ignore karne ka sahi tarika
   eslint: {
     ignoreDuringBuilds: true,
   },
 
-  // ✅ 3. Images Configuration
+  // ✅ 2. Images configuration
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
@@ -19,19 +17,12 @@ const nextConfig = {
     ],
   },
 
-  // ✅ 4. Proxy / Rewrites (Backend Connection)
+  // ✅ 3. Production Backend URL (Rewrites)
   async rewrites() {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://luxewatch-backend.onrender.com';
-    
     return [
-      {
-        source: '/uploads/:path*',
-        destination: `${backendUrl}/uploads/:path*`,
-      },
-      {
-        source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
-      },
+      { source: '/uploads/:path*', destination: `${backendUrl}/uploads/:path*` },
+      { source: '/api/:path*', destination: `${backendUrl}/api/:path*` },
     ];
   },
 };

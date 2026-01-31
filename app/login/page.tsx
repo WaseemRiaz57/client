@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '@/lib/api';
 
+// ✅ Ye line yahan add karein (sab se zaroori):
+export const dynamic = "force-dynamic";
+
 interface LoginFormData {
   email: string;
   password: string;
