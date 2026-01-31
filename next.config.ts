@@ -1,11 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // ✅ 1. TypeScript aur ESLint ko build ke waqt ignore karein
+  // ✅ 1. Sirf TypeScript errors ko ignore karein (ESLint yahan se hata diya hai)
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 
   // ✅ 2. Images configuration
