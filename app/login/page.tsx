@@ -1,22 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+// ✅ Suspense ko import karna zaroori hai
+import { useState, Suspense } from 'react'; 
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '@/lib/api';
-
-// ✅ Ye line yahan add karein (sab se zaroori):
-export const dynamic = "force-dynamic";
 
 interface LoginFormData {
   email: string;
   password: string;
 }
 
-export default function LoginPage() {
+// 1️⃣ Asli Logic ko aik alag component mein rakhein
+function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // ✅ Ye ab Suspense ke andar aa gaya
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +25,6 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormData>();
 
-  // Get redirect URL from query params if available
   const redirectUrl = searchParams?.get('redirect') || null;
 
   const onSubmit = async (data: LoginFormData) => {
@@ -34,15 +32,12 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
 
-      // Login with email and password
       const response = await authAPI.login(data);
       
-      // Validate response structure
       if (!response.data || !response.data.token) {
         throw new Error('Invalid response from server');
       }
 
-      // Store token and user data
       const token = response.data.token;
       const user = response.data.user;
 
@@ -51,20 +46,11 @@ export default function LoginPage() {
 
       console.log('Login successful. User role:', user.role);
 
-      // Determine redirect destination based on priority:
-      // 1. If admin, always go to /admin (override any redirect param)
-      // 2. If redirect param exists, use it
-      // 3. Otherwise, go to /products
-
       if (user.role === 'admin') {
-        console.log('Admin user detected. Redirecting to /admin');
         router.push('/admin');
       } else if (redirectUrl && redirectUrl.startsWith('/')) {
-        // Validate redirect URL for security (must start with /)
-        console.log('Redirect parameter found. Redirecting to:', redirectUrl);
         router.push(redirectUrl);
       } else {
-        console.log('Regular user. Redirecting to /products');
         router.push('/products');
       }
     } catch (err: any) {
@@ -79,7 +65,6 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="mb-8 text-center">
           <h1 className="mb-2 font-heading text-4xl font-bold text-primary">
             Welcome Back
@@ -89,17 +74,14 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Form */}
         <div className="rounded-lg bg-white p-8 shadow-lg">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Error Message */}
             {error && (
               <div className="rounded-lg bg-red-50 p-4 border border-red-200">
                 <p className="font-body text-sm text-red-600">{error}</p>
               </div>
             )}
 
-            {/* Email */}
             <div>
               <label className="mb-2 block font-body text-sm font-semibold text-gray-700">
                 Email Address
@@ -123,7 +105,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Password */}
             <div>
               <label className="mb-2 block font-body text-sm font-semibold text-gray-700">
                 Password
@@ -147,7 +128,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
@@ -157,7 +137,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Links */}
           <div className="mt-6 text-center">
             <p className="font-body text-sm text-gray-600">
               Don't have an account?{' '}
@@ -172,5 +151,15 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2️⃣ Main Page Component jo Suspense use karega
+export default function LoginPage() {
+  return (
+    // ✅ Ye Suspense wrapper error ko khatam kar dega
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
