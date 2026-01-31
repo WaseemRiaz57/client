@@ -56,20 +56,19 @@ export default function FinalLuxuryWatchHero() {
   }, []);
 
   useEffect(() => {
-    const moveCursor = (e) => {
-      cursorX.set(e.clientX - 16);
-      cursorY.set(e.clientY - 16);
-    };
+    const moveCursor = (e: MouseEvent) => {
+  cursorX.set(e.clientX - 16);
+  cursorY.set(e.clientY - 16);
+};
     window.addEventListener('mousemove', moveCursor);
     return () => window.removeEventListener('mousemove', moveCursor);
   }, []);
 
   const currentSlide = slides[currentIndex];
 
-  const handleSlideChange = (index) => {
-    setCurrentIndex(index);
-  };
-
+  const handleSlideChange = (index: number) => {
+  setCurrentIndex(index);
+}
   return (
     <>
       {/* Custom Cursor */}

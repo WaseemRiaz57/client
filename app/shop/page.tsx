@@ -204,7 +204,7 @@ export default function ShopPage() {
                   <button
                     onClick={() => {
                       addItem({
-                        _id: product._id,
+                        id: product._id,
                         modelName: product.modelName,
                         price: product.price,
                         image: product.images?.[0] || '',

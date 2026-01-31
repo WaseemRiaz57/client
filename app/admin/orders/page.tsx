@@ -31,6 +31,8 @@ interface Order {
   totalPrice: number;
   isPaid: boolean;
   isDelivered: boolean;
+  paymentStatus?: string; // ✅ Yeh line add karein (image_cd5ed8 fix)
+  orderStatus: 'processing' | 'shipped' | 'delivered' | 'cancelled'; // ✅ Yeh line add karein (image_cd5c32 fix)
   paidAt?: string;
   deliveredAt?: string;
   createdAt: string;

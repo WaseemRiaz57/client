@@ -26,7 +26,7 @@ interface ShippingAddress {
 
 const Checkout = () => {
   const router = useRouter();
-  const { items, totalPrice, clearCart } = useCartStore();
+  const { cart: items, totalPrice, clearCart } = useCartStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -101,7 +101,7 @@ const Checkout = () => {
       }
 
       // Prepare items
-      const orderItems = items.map((item) => ({
+      const orderItems = items.map((item:any) => ({
         productId: item.id,
         quantity: item.quantity,
       }));
