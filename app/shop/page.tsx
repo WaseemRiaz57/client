@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react'; // ✅ 1. Suspense Import kiya
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -21,9 +21,10 @@ interface Product {
 
 const ITEMS_PER_PAGE = 9;
 
-export default function ShopPage() {
+// ✅ 2. Saara Asli Logic is component mein shift kar diya
+function ShopContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // ✅ Ye ab Suspense ke andar hai
   
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -271,5 +272,18 @@ export default function ShopPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// ✅ 3. Main Export jo Suspense use karega (Build Error ka hal)
+export default function ShopPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-gold border-t-transparent" />
+      </div>
+    }>
+      <ShopContent />
+    </Suspense>
   );
 }
