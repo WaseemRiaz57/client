@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+// ✅ 1. Suspense import kiya
+import { useState, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authAPI } from '@/lib/api';
 
-// 1. Backend requires separate first and last names
+// Backend requirements interface
 interface RegisterFormData {
   firstName: string;
   lastName: string;
@@ -15,7 +16,8 @@ interface RegisterFormData {
   confirmPassword: string;
 }
 
-export default function RegisterPage() {
+// ✅ 2. Asli logic ko 'RegisterForm' component bana diya
+function RegisterForm() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,8 +36,6 @@ export default function RegisterPage() {
       setLoading(true);
       setError('');
 
-      // 2. FIX: Pass a single object matching backend requirements
-      // We do not send 'confirmPassword' to the backend
       const response = await authAPI.register({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -43,11 +43,7 @@ export default function RegisterPage() {
         password: data.password,
       });
       
-      // 3. Success handling
       if (response.status === 200 || response.status === 201) {
-        // If your backend auto-logins after register, store token.
-        // If it requires email verification or manual login, redirect to login.
-        // Assuming manual login based on previous context:
         alert("Registration Successful! Please Login.");
         router.push('/login');
       }
@@ -220,5 +216,14 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ✅ 3. Main Component jo Suspense use karega (Safe for Next.js 16)
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }
