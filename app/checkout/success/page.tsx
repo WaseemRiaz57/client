@@ -33,7 +33,7 @@ export default function OrderSuccessPage() {
           </Link>
 
           <Link 
-            href="/products" 
+            href="/shop" 
             className="flex w-full items-center justify-center rounded-lg border border-gray-300 py-4 font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             Continue Shopping

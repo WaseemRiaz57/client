@@ -54,7 +54,7 @@ const Hero = () => {
             transition={{ duration: 1.2, delay: 1.1, ease: 'easeOut' }}
           >
             <Link
-              href="/products"
+              href="/shop"
               className="inline-block bg-gold px-10 py-4 font-body text-lg font-bold uppercase tracking-wider text-black transition-all duration-300 hover:bg-white hover:shadow-2xl"
             >
               Shop Now

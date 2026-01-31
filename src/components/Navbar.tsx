@@ -1,14 +1,18 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ShoppingBag, Search, Menu, X } from 'lucide-react';
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import { useCartStore } from '@/store/useCartStore';
 
 export default function Navbar() {
+  const router = useRouter();
   const [hidden, setHidden] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { scrollY } = useScroll();
   
   // ✅ Cart Store Integration (Old Functionality Kept)
@@ -27,9 +31,17 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Collections', href: '/shop' },
-    { name: 'Heritage', href: '/about' }, // Assuming these routes exists, mapped to Shop/About
-    { name: 'Artisans', href: '/contact' }
+    { name: 'Heritage', href: '/heritage' },
+    { name: 'Artisans', href: '/artisans' }
   ];
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchQuery.trim()) {
+      router.push(`/shop?search=${encodeURIComponent(searchQuery)}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <>
@@ -65,7 +77,10 @@ export default function Navbar() {
 
           {/* Right: Icons */}
           <div className="flex items-center gap-4 md:gap-6">
-            <button className="text-gray-300 hover:text-white transition-colors hidden sm:block">
+            <button 
+              onClick={() => setIsSearchOpen(!isSearchOpen)}
+              className="text-gray-300 hover:text-white transition-colors hidden sm:block"
+            >
               <Search className="w-4 h-4" />
             </button>
             
@@ -89,6 +104,29 @@ export default function Navbar() {
           </div>
 
         </div>
+
+        {/* Search Input Field */}
+        <AnimatePresence>
+          {isSearchOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute top-20 left-1/2 transform -translate-x-1/2 w-80 max-w-[90vw]"
+            >
+              <input
+                type="text"
+                placeholder="Search timepieces..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearch}
+                autoFocus
+                className="w-full bg-black/80 border border-[#D4AF37] text-white placeholder-gray-500 px-4 py-3 rounded-sm focus:outline-none focus:border-[#D4AF37] transition-colors"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.nav>
 
       {/* Mobile Full Screen Menu Overlay */}

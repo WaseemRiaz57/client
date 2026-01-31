@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { Toaster } from 'react-hot-toast'; // 👈 IMPORT ADDED
+import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { Toaster } from "react-hot-toast";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-playfair" });
 
 export const metadata: Metadata = {
-  title: "LuxWatch - Timeless Elegance",
-  description: "Discover luxury watches crafted for those who appreciate perfection",
+  title: "Chronos | Luxury Timepieces",
+  description: "Experience the pinnacle of horological artistry.",
 };
 
 export default function RootLayout({
@@ -16,23 +19,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        {/* 👇 TOASTER ADDED HERE */}
-        <Toaster 
-          position="top-center" 
-          reverseOrder={false} 
+      <body className={`${inter.variable} ${playfair.variable} font-sans bg-black text-white antialiased`}>
+        <Navbar />
+        <Toaster
+          position="top-right"
           toastOptions={{
-            duration: 4000,
+            duration: 3000,
             style: {
-              background: '#333',
+              background: '#1a1a1a',
               color: '#fff',
+              border: '1px solid #D4AF37',
+            },
+            success: {
+              iconTheme: {
+                primary: '#D4AF37',
+                secondary: '#000',
+              },
             },
           }}
         />
-        
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+        <main className="pt-32 min-h-screen relative z-0">
+          {children}
+        </main>
       </body>
     </html>
   );

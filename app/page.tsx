@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import Navbar from '@/components/Navbar';
 import Hero from '@/components/home/Hero';
 import FeaturedProducts from '@/components/home/FeaturedProducts';
 import BrandStory from '@/components/home/BrandStory';
@@ -30,11 +29,8 @@ export default function Home() {
 
   return (
     <main className="bg-black min-h-screen text-white selection:bg-[#D4AF37] selection:text-black">
-      
-      <Navbar />
-
-      {/* 1. HERO SECTION (Pure Black) */}
-      <div className="relative z-10 bg-black">
+      {/* 1. HERO SECTION (Pure Black) - Negative margin to overlap behind navbar */}
+      <div className="relative z-10 bg-black -mt-32">
         <Hero />
       </div>
 

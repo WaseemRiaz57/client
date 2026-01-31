@@ -3,137 +3,85 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface CartItem {
   id: string;
-  brand: string;
+  brand?: string;
   modelName: string;
   price: number;
   discountPrice?: number;
   image: string;
   quantity: number;
-  stock: number;
+  stock?: number;
 }
 
-interface CartStore {
-  items: CartItem[];
+interface CartState {
+  cart: CartItem[];
   totalItems: number;
   totalPrice: number;
   
   // Actions
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  addItem: (item: Omit<CartItem, 'quantity'> | CartItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  getItemQuantity: (id: string) => number;
 }
 
-// Calculate totals helper
-const calculateTotals = (items: CartItem[]) => {
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce((sum, item) => {
-    const price = item.discountPrice || item.price;
-    return sum + price * item.quantity;
-  }, 0);
-  
-  return { totalItems, totalPrice };
-};
-
-export const useCartStore = create<CartStore>()(
+export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      items: [],
+      cart: [],
       totalItems: 0,
       totalPrice: 0,
-
+      
       addItem: (newItem) => {
-        set((state) => {
-          const existingItemIndex = state.items.findIndex((item) => item.id === newItem.id);
+        const currentCart = get().cart;
+        const existingItem = currentCart.find((item) => item.id === newItem.id);
+        const quantity = 'quantity' in newItem ? newItem.quantity : 1;
 
-          let updatedItems: CartItem[];
-
-          if (existingItemIndex > -1) {
-            // Item exists, increment quantity
-            updatedItems = state.items.map((item, index) => {
-              if (index === existingItemIndex) {
-                const newQuantity = Math.min(item.quantity + 1, item.stock);
-                return { ...item, quantity: newQuantity };
-              }
-              return item;
-            });
-          } else {
-            // New item, add to cart
-            updatedItems = [...state.items, { ...newItem, quantity: 1 }];
-          }
-
-          const { totalItems, totalPrice } = calculateTotals(updatedItems);
-
-          return {
-            items: updatedItems,
-            totalItems,
-            totalPrice,
-          };
-        });
+        if (existingItem) {
+          set({
+            cart: currentCart.map((item) =>
+              item.id === newItem.id
+                ? { ...item, quantity: item.quantity + quantity }
+                : item
+            ),
+          });
+        } else {
+          set({ cart: [...currentCart, { ...newItem, quantity }] });
+        }
+        
+        // Update totals
+        const updatedCart = get().cart;
+        const totalItems = updatedCart.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = updatedCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        set({ totalItems, totalPrice });
       },
 
       removeItem: (id) => {
-        set((state) => {
-          const updatedItems = state.items.filter((item) => item.id !== id);
-          const { totalItems, totalPrice } = calculateTotals(updatedItems);
-
-          return {
-            items: updatedItems,
-            totalItems,
-            totalPrice,
-          };
-        });
+        const updatedCart = get().cart.filter((item) => item.id !== id);
+        const totalItems = updatedCart.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = updatedCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        
+        set({ cart: updatedCart, totalItems, totalPrice });
       },
 
       updateQuantity: (id, quantity) => {
-        set((state) => {
-          if (quantity <= 0) {
-            // Remove item if quantity is 0 or negative
-            const updatedItems = state.items.filter((item) => item.id !== id);
-            const { totalItems, totalPrice } = calculateTotals(updatedItems);
-
-            return {
-              items: updatedItems,
-              totalItems,
-              totalPrice,
-            };
-          }
-
-          const updatedItems = state.items.map((item) => {
-            if (item.id === id) {
-              // Ensure quantity doesn't exceed stock
-              const newQuantity = Math.min(quantity, item.stock);
-              return { ...item, quantity: newQuantity };
-            }
-            return item;
-          });
-
-          const { totalItems, totalPrice } = calculateTotals(updatedItems);
-
-          return {
-            items: updatedItems,
-            totalItems,
-            totalPrice,
-          };
-        });
+        if (quantity <= 0) {
+          get().removeItem(id);
+          return;
+        }
+        
+        const updatedCart = get().cart.map((item) =>
+          item.id === id ? { ...item, quantity } : item
+        );
+        const totalItems = updatedCart.reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = updatedCart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        
+        set({ cart: updatedCart, totalItems, totalPrice });
       },
 
-      clearCart: () => {
-        set({
-          items: [],
-          totalItems: 0,
-          totalPrice: 0,
-        });
-      },
-
-      getItemQuantity: (id) => {
-        const item = get().items.find((item) => item.id === id);
-        return item ? item.quantity : 0;
-      },
+      clearCart: () => set({ cart: [], totalItems: 0, totalPrice: 0 }),
     }),
     {
-      name: 'luxury-watch-cart',
+      name: 'chronos-cart-storage',
       storage: createJSONStorage(() => localStorage),
     }
   )
