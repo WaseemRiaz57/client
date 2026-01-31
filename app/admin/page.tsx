@@ -460,7 +460,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Order Status and Amount */}
+              {/* Order Status annd Amount */}
               <div className="mb-6 rounded-lg bg-gray-50 p-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
