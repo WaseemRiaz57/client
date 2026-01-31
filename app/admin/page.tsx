@@ -74,7 +74,7 @@ const formatStatus = (status: string) => {
 };
 
 // Constants
-const API_URL = 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://luxewatch-backend.onrender.com';
 
 // Helper function to construct image URL
 const getImageUrl = (imageSource: string | undefined): string => {
