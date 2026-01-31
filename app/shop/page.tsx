@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react'; // ✅ 1. Suspense Import kiya
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -9,6 +9,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { useCartStore } from '@/store/useCartStore';
 import toast from 'react-hot-toast';
+
+// ✅ 1. API URL Constant defined here
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 interface Product {
   _id: string;
@@ -21,22 +24,18 @@ interface Product {
 
 const ITEMS_PER_PAGE = 9;
 
-// ✅ 2. Saara Asli Logic is component mein shift kar diya
 function ShopContent() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // ✅ Ye ab Suspense ke andar hai
+  const searchParams = useSearchParams();
   
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Get search query from URL
   const searchQuery = searchParams.get('search')?.toLowerCase() || '';
-
   const { addItem } = useCartStore();
 
-  // Fetch all products on mount
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -56,7 +55,6 @@ function ShopContent() {
     fetchProducts();
   }, []);
 
-  // Apply search filter whenever search query or products change
   useEffect(() => {
     let filtered = [...allProducts];
     
@@ -68,10 +66,10 @@ function ShopContent() {
     }
     
     setFilteredProducts(filtered);
-    setCurrentPage(1); // Reset to page 1 when search changes
+    setCurrentPage(1);
   }, [searchQuery, allProducts]);
 
-  // Helper function to resolve image URLs
+  // ✅ 2. Image URL Fix Function
   const getImageUrl = (imagePath?: string) => {
     if (!imagePath) {
       return 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=1200&auto=format&fit=crop';
@@ -80,18 +78,17 @@ function ShopContent() {
       return imagePath;
     }
     if (imagePath.startsWith('/')) {
-      return `http://localhost:5000${imagePath}`;
+      // Yahan ab hum 'API_URL' use kar rahe hain bajaye localhost ke
+      return `${API_URL}${imagePath}`;
     }
     return imagePath;
   };
 
-  // Pagination calculations
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex);
 
-  // Handle page changes with scroll to top
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     window.scrollTo(0, 0);
@@ -135,7 +132,6 @@ function ShopContent() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-6 py-12 sm:px-12 lg:px-24">
-        {/* Results Info */}
         <div className="mb-12 flex items-center justify-between">
           <p className="text-sm text-gray-400">
             {loading ? 'Loading...' : `${filteredProducts.length} timepieces found`}
@@ -147,7 +143,6 @@ function ShopContent() {
           )}
         </div>
 
-        {/* Products Grid or Empty State */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-gold border-t-transparent" />
@@ -168,7 +163,6 @@ function ShopContent() {
           </div>
         ) : (
           <>
-            {/* Products Grid */}
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-3 mb-16">
               {paginatedProducts.map((product) => (
                 <motion.div
@@ -221,7 +215,6 @@ function ShopContent() {
               ))}
             </div>
 
-            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="border-t border-gold/20 pt-12 flex items-center justify-center gap-4">
                 <button
@@ -259,7 +252,6 @@ function ShopContent() {
               </div>
             )}
 
-            {/* Bottom Actions */}
             <div className="mt-16 text-center border-t border-white/10 pt-12">
               <p className="text-gray-400 mb-6 italic">Found what you were looking for?</p>
               <Link href="/cart">
@@ -275,7 +267,6 @@ function ShopContent() {
   );
 }
 
-// ✅ 3. Main Export jo Suspense use karega (Build Error ka hal)
 export default function ShopPage() {
   return (
     <Suspense fallback={

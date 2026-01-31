@@ -1,7 +1,9 @@
 import axios from 'axios';
 
-// Backend API base URL
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// ✅ UPDATE: Environment Variable Logic Fix
+// Agar Vercel variable maujood hai to wo use karega, warna localhost
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const BASE_URL = `${API_URL}/api`;
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
@@ -10,6 +12,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // withCredentials: true, // Agar aap cookies use kar rahe hain to isay uncomment karein
 });
 
 // Request interceptor - Attach JWT token to every request
