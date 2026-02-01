@@ -19,11 +19,12 @@ interface FeaturedProductsProps {
 
 export default function FeaturedProducts({ products }: FeaturedProductsProps) {
   
-  // Image URL Helper
+  // ✅ FIX: Image URL Helper (Fixed double http protocol)
   const getImageUrl = (imagePath: string) => {
     if (!imagePath) return 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&q=80';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://https://luxewatch-backend.onrender.com${imagePath}`;
+    // Niche wali line fix kar di hai:
+    return `https://luxewatch-backend.onrender.com${imagePath}`;
   };
 
   return (
@@ -47,50 +48,57 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
 
       {/* Products Grid */}
       <div className="max-w-[1800px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        {products.map((product, index) => (
-          <Link href={`/product/${product._id}`} key={product._id}>
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              viewport={{ once: true }}
-              className="group relative bg-[#0a0a0a] border border-white/5 p-4 hover:border-[#D4AF37]/50 transition-colors duration-500"
-            >
-              
-              {/* Image Container */}
-              <div className="relative aspect-[4/5] overflow-hidden mb-6 bg-[#111]">
-                <img
-                  src={getImageUrl(product.images?.[0])}
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
-                />
+        {/* Agar products empty hon to user ko kuch dikhao */}
+        {products && products.length > 0 ? (
+          products.map((product, index) => (
+            <Link href={`/product/${product._id}`} key={product._id}>
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="group relative bg-[#0a0a0a] border border-white/5 p-4 hover:border-[#D4AF37]/50 transition-colors duration-500"
+              >
                 
-                {/* Overlay Tag */}
-                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1">
-                  <span className="text-[10px] uppercase tracking-widest text-white">
-                    {product.brand}
-                  </span>
+                {/* Image Container */}
+                <div className="relative aspect-[4/5] overflow-hidden mb-6 bg-[#111]">
+                  <img
+                    src={getImageUrl(product.images?.[0])}
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
+                  />
+                  
+                  {/* Overlay Tag */}
+                  <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md border border-white/10 px-3 py-1">
+                    <span className="text-[10px] uppercase tracking-widest text-white">
+                      {product.brand}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Product Info */}
-              <div className="flex justify-between items-end">
-                <div>
-                  <h3 className="text-xl font-serif text-white mb-2 group-hover:text-[#D4AF37] transition-colors">
-                    {product.name}
-                  </h3>
-                  <p className="text-gray-500 text-sm">Automatic Movement</p>
+                {/* Product Info */}
+                <div className="flex justify-between items-end">
+                  <div>
+                    <h3 className="text-xl font-serif text-white mb-2 group-hover:text-[#D4AF37] transition-colors">
+                      {product.name}
+                    </h3>
+                    <p className="text-gray-500 text-sm">Automatic Movement</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-medium text-white">
+                      Rs. {product.price.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-medium text-white">
-                    Rs. {product.price.toLocaleString()}
-                  </p>
-                </div>
-              </div>
 
-            </motion.div>
-          </Link>
-        ))}
+              </motion.div>
+            </Link>
+          ))
+        ) : (
+          <div className="col-span-3 text-center text-gray-500 py-10">
+            Loading Signature Collection...
+          </div>
+        )}
       </div>
 
       {/* Mobile View All Button */}

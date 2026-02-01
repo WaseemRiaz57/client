@@ -6,7 +6,7 @@ import Hero from '@/components/home/Hero';
 import FeaturedProducts from '@/components/home/FeaturedProducts';
 import BrandStory from '@/components/home/BrandStory';
 import Testimonials from '@/components/home/Testimonials';
-import Marquee from '@/components/home/Marquee'; // New Import
+import Marquee from '@/components/home/Marquee'; 
 
 export default function Home() {
   const [products, setProducts] = useState([]);
@@ -15,7 +15,8 @@ export default function Home() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const { data } = await axios.get('http://https://luxewatch-backend.onrender.com/api/products'); 
+        // ✅ FIX: Removed extra 'http://' from the start
+        const { data } = await axios.get('https://luxewatch-backend.onrender.com/api/products'); 
         const productList = Array.isArray(data) ? data : (data.products || []);
         setProducts(productList.slice(0, 3)); 
         setLoading(false);
