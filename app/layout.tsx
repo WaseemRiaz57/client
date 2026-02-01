@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer"; // 👈 YE MISSING THA (Import kiya)
 import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${playfair.variable} font-sans bg-black text-white antialiased`}>
+        {/* Navbar Sab se upar */}
         <Navbar />
+        
         <Toaster
           position="top-right"
           toastOptions={{
@@ -38,9 +41,14 @@ export default function RootLayout({
             },
           }}
         />
+        
+        {/* Main Content */}
         <main className="pt-32 min-h-screen relative z-0">
           {children}
         </main>
+
+        {/* 👇 Footer yahan add kar diya hai, ab ye har page par dikhega */}
+        <Footer /> 
       </body>
     </html>
   );
