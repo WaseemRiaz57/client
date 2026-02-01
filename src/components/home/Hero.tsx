@@ -216,7 +216,7 @@ export default function FinalLuxuryWatchHero() {
                         transition={{ duration: 0.8, delay: 1.4 }}
                       >
                         <Link 
-                          href="/collection"
+                          href="/shop"
                           className="group relative inline-flex items-center gap-4"
                           onMouseEnter={() => setCursorVariant('hover')}
                           onMouseLeave={() => setCursorVariant('default')}
