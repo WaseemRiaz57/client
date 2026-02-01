@@ -15,7 +15,7 @@ export default function Home() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/products'); 
+        const { data } = await axios.get('http://https://luxewatch-backend.onrender.com/api/products'); 
         const productList = Array.isArray(data) ? data : (data.products || []);
         setProducts(productList.slice(0, 3)); 
         setLoading(false);

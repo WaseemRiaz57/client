@@ -67,7 +67,7 @@ export default function OrderDetailPage({ params, searchParams }: OrderDetailPag
   const fetchOrder = async (orderId: string) => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://https://luxewatch-backend.onrender.com/api';
       const response = await axios.get(`${apiUrl}/orders/${orderId}`);
       setOrder(response.data);
     } catch (err: any) {

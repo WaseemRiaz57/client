@@ -11,7 +11,7 @@ import { useCartStore } from '@/store/useCartStore';
 import toast from 'react-hot-toast';
 
 // ✅ 1. API URL Constant defined here
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://https://luxewatch-backend.onrender.com';
 
 interface Product {
   _id: string;

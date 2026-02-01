@@ -44,7 +44,7 @@ export default function CheckoutPage() {
       return imagePath;
     }
     if (imagePath.startsWith('/')) {
-      return `http://localhost:5000${imagePath}`;
+      return `http://https://luxewatch-backend.onrender.com${imagePath}`;
     }
     return imagePath;
   };
@@ -94,7 +94,7 @@ export default function CheckoutPage() {
       console.log('Payload:', payload);
 
       // 4. API Call
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch('http://https://luxewatch-backend.onrender.com/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -9,7 +9,7 @@ import ProductImage from '@/components/ProductImage';
 import toast from 'react-hot-toast';
 
 // Constants
-const API_URL = 'http://localhost:5000';
+const API_URL = 'http://https://luxewatch-backend.onrender.com';
 
 // Helper function to construct image URL
 const getImageUrl = (imageSource: string | undefined): string => {

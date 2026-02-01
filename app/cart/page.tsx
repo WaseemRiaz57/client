@@ -16,7 +16,7 @@ const getImageUrl = (imagePath?: string) => {
     return imagePath;
   }
   if (imagePath.startsWith('/')) {
-    return `http://localhost:5000${imagePath}`;
+    return `http://https://luxewatch-backend.onrender.com${imagePath}`;
   }
   return imagePath;
 };

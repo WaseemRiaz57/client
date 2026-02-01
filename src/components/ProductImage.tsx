@@ -31,7 +31,7 @@ export default function ProductImage({ src, alt, className }: ProductImageProps)
     const pathWithUploads = normalizedPath.startsWith('uploads/')
       ? normalizedPath
       : `uploads/${normalizedPath}`;
-    const apiBaseUrl = 'http://localhost:5000';
+    const apiBaseUrl = 'http://https://luxewatch-backend.onrender.com';
     setImgSrc(`${apiBaseUrl}/${pathWithUploads}`);
   }, [src]);
 

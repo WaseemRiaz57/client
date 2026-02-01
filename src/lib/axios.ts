@@ -7,7 +7,7 @@ console.log("🔍 VERCEL ENV VAR:", ENV_URL);
 // ✅ SAFETY FIX: 
 // 1. Agar Env Var undefined hai, to Localhost use karo.
 // 2. Agar Env Var mein ghalti se '/api' laga hai, to usay hata do taake double na ho.
-const RAW_URL = ENV_URL || 'http://localhost:5000';
+const RAW_URL = ENV_URL || 'http://https://luxewatch-backend.onrender.com';
 const CLEAN_URL = RAW_URL.endsWith('/api') ? RAW_URL.slice(0, -4) : RAW_URL;
 
 // Ab '/api' lagayen (Safe approach)

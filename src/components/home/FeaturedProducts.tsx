@@ -23,7 +23,7 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
   const getImageUrl = (imagePath: string) => {
     if (!imagePath) return 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&q=80';
     if (imagePath.startsWith('http')) return imagePath;
-    return `http://localhost:5000${imagePath}`;
+    return `http://https://luxewatch-backend.onrender.com${imagePath}`;
   };
 
   return (
