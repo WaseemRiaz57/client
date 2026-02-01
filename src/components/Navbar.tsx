@@ -15,7 +15,6 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const { scrollY } = useScroll();
   
-  // ✅ Cart Store Integration (Old Functionality Kept)
   const totalItems = useCartStore((state) => state.totalItems);
 
   // Scroll Logic: Hide on scroll down, Show on scroll up
@@ -30,7 +29,7 @@ export default function Navbar() {
   });
 
   const navLinks = [
-    { name: 'Collections', href: '/shop' },
+    { name: 'Collections', href: '/shop' }, // ✅ Sahi link (Pehle Collection tha)
     { name: 'Heritage', href: '/heritage' },
     { name: 'Artisans', href: '/artisans' }
   ];
@@ -153,15 +152,16 @@ export default function Navbar() {
               
               <div className="w-12 h-[1px] bg-white/10 my-4"></div>
 
+              {/* 👇 FIXED: '/products' ki jagah '/shop' kar diya */}
               <Link
-                href="/products"
+                href="/shop" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="text-sm font-medium text-gray-400 uppercase tracking-widest hover:text-white"
               >
                 Shop All
               </Link>
 
-              {/* Admin Link (Only in Mobile Menu for discretion) */}
+              {/* Admin Link */}
               <Link
                 href="/admin"
                 onClick={() => setIsMobileMenuOpen(false)}
