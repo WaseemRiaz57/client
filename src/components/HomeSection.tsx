@@ -275,8 +275,9 @@ const CTASection = () => {
             Explore our curated collection of luxury watches from the world's most prestigious brands.
             Each piece is authenticated and backed by our guarantee of excellence.
           </p>
+          {/* 👇 FIXED: URL update from '/products' to '/shop' */}
           <Link
-            href="/products"
+            href="/shop"
             className="inline-block bg-primary px-10 py-4 font-body text-lg font-bold uppercase tracking-wider text-white transition-all duration-300 hover:bg-gray-800"
           >
             Browse Collection
