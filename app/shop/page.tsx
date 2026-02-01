@@ -10,8 +10,8 @@ import axiosInstance from '@/lib/axios';
 import { useCartStore } from '@/store/useCartStore';
 import toast from 'react-hot-toast';
 
-// ✅ 1. API URL Constant defined here
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://https://luxewatch-backend.onrender.com';
+// ✅ FIX 1: URL Typo Fixed (Pehle 'http://https://' tha jo ghalat tha)
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://luxewatch-backend.onrender.com';
 
 interface Product {
   _id: string;
@@ -69,7 +69,7 @@ function ShopContent() {
     setCurrentPage(1);
   }, [searchQuery, allProducts]);
 
-  // ✅ 2. Image URL Fix Function
+  // Image URL Helper
   const getImageUrl = (imagePath?: string) => {
     if (!imagePath) {
       return 'https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?q=80&w=1200&auto=format&fit=crop';
@@ -78,7 +78,6 @@ function ShopContent() {
       return imagePath;
     }
     if (imagePath.startsWith('/')) {
-      // Yahan ab hum 'API_URL' use kar rahe hain bajaye localhost ke
       return `${API_URL}${imagePath}`;
     }
     return imagePath;
@@ -163,7 +162,9 @@ function ShopContent() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 xl:grid-cols-3 mb-16">
+            {/* ✅ FIX 2: Layout Update for 3 Columns */}
+            {/* Pehle 'xl:grid-cols-3' tha, ab 'lg:grid-cols-3' kar diya hai taake Laptop par 3 nazar aayen */}
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 mb-16">
               {paginatedProducts.map((product) => (
                 <motion.div
                   key={product._id}
