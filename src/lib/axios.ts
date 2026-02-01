@@ -1,9 +1,19 @@
 import axios from 'axios';
 
-// ✅ UPDATE: Environment Variable Logic Fix
-// Agar Vercel variable maujood hai to wo use karega, warna localhost
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-const BASE_URL = `${API_URL}/api`;
+// 🔍 DEBUGGING: Check karein ke Env Var load hua ya nahi
+const ENV_URL = process.env.NEXT_PUBLIC_API_URL;
+console.log("🔍 VERCEL ENV VAR:", ENV_URL); 
+
+// ✅ SAFETY FIX: 
+// 1. Agar Env Var undefined hai, to Localhost use karo.
+// 2. Agar Env Var mein ghalti se '/api' laga hai, to usay hata do taake double na ho.
+const RAW_URL = ENV_URL || 'http://localhost:5000';
+const CLEAN_URL = RAW_URL.endsWith('/api') ? RAW_URL.slice(0, -4) : RAW_URL;
+
+// Ab '/api' lagayen (Safe approach)
+const BASE_URL = `${CLEAN_URL}/api`;
+
+console.log("🚀 FINAL REQUEST URL:", BASE_URL); 
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
@@ -44,6 +54,7 @@ axiosInstance.interceptors.response.use(
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
+      console.error(`❌ API Error [${status}]:`, data?.message || error.message);
 
       switch (status) {
         case 401:
